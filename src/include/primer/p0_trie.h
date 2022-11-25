@@ -300,6 +300,7 @@ class Trie {
       return false;
     }
 
+    latch_.WLock();
     std::unique_ptr<TrieNode> *node = &root_;
     for (char ch : key) {
       if ((*node)->GetChildNode(ch) == nullptr) {
@@ -314,7 +315,7 @@ class Trie {
     }
 
     *node = std::unique_ptr<TrieNode>(new TrieNodeWithValue<T>(std::move(*(node->get())), value));
-
+    latch_.WUnlock();
     return true;
   }
 
@@ -339,7 +340,7 @@ class Trie {
     if (key.empty()) {
       return false;
     }
-
+    latch_.WLock();
     std::unique_ptr<TrieNode> *node = &root_;
 
     for (auto &ch : key) {
@@ -351,7 +352,7 @@ class Trie {
     }
 
     RemoveAux(key, 0, &root_);
-
+    latch_.WUnlock();
     return true;
   }
 
@@ -392,6 +393,7 @@ class Trie {
    */
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
+    latch_.RLock();
     *success = false;
     std::unique_ptr<TrieNode> *node = &root_;
 
@@ -409,7 +411,7 @@ class Trie {
     }
 
     *success = true;
-
+    latch_.RUnlock();
     return res->GetValue();
   }
 };
