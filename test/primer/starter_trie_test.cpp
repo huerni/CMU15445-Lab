@@ -49,7 +49,6 @@ TEST(StarterTest, TrieNodeInsertTest) {
   auto child_node = t.InsertChildNode('b', std::make_unique<TrieNode>('b'));
   EXPECT_NE(child_node, nullptr);
   EXPECT_EQ((*child_node)->GetKeyChar(), 'b');
-  
 
   child_node = t.InsertChildNode('b', std::make_unique<TrieNode>('b'));
   EXPECT_EQ(child_node, nullptr);
