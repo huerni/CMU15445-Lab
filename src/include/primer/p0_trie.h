@@ -395,7 +395,7 @@ class Trie {
    */
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
-    latch_->RLock();
+    latch_.RLock();
     *success = false;
     std::unique_ptr<TrieNode> *node = &root_;
 
