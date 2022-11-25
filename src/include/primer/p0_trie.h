@@ -311,6 +311,7 @@ class Trie {
     }
 
     if ((*node)->IsEndNode()) {
+      latch_.WUnlock();
       return false;
     }
 
@@ -345,6 +346,7 @@ class Trie {
 
     for (auto &ch : key) {
       if ((*node)->GetChildNode(ch) == nullptr) {
+        latch_.WUnlock();
         return false;
       }
 
@@ -393,12 +395,13 @@ class Trie {
    */
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
-    latch_.RLock();
+    latch_->RLock();
     *success = false;
     std::unique_ptr<TrieNode> *node = &root_;
 
     for (auto &ch : key) {
       if ((*node)->GetChildNode(ch) == nullptr) {
+        latch_.RUnlock();
         return {};
       }
 
@@ -407,6 +410,7 @@ class Trie {
 
     auto res = dynamic_cast<TrieNodeWithValue<T> *>(node->get());
     if (res == nullptr) {
+      latch_.RUnlock();
       return {};
     }
 
