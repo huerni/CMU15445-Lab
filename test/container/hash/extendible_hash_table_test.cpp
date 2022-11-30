@@ -8,11 +8,12 @@
 #include "container/hash/extendible_hash_table.h"
 #include "gtest/gtest.h"
 
+#include "common/logger.h"
+
 namespace bustub {
 
-TEST(ExtendibleHashTableTest, DISABLED_SampleTest) {
+TEST(ExtendibleHashTableTest, SampleTest) {
   auto table = std::make_unique<ExtendibleHashTable<int, std::string>>(2);
-
   table->Insert(1, "a");
   table->Insert(2, "b");
   table->Insert(3, "c");
@@ -42,7 +43,7 @@ TEST(ExtendibleHashTableTest, DISABLED_SampleTest) {
   EXPECT_FALSE(table->Remove(20));
 }
 
-TEST(ExtendibleHashTableTest, DISABLED_ConcurrentInsertTest) {
+TEST(ExtendibleHashTableTest, ConcurrentInsertTest) {
   const int num_runs = 50;
   const int num_threads = 3;
 

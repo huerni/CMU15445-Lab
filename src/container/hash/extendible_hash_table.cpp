@@ -19,15 +19,21 @@
 #include "container/hash/extendible_hash_table.h"
 #include "storage/page/page.h"
 
+#include "common/logger.h"
+
 namespace bustub {
 
 template <typename K, typename V>
 ExtendibleHashTable<K, V>::ExtendibleHashTable(size_t bucket_size)
-    : global_depth_(0), bucket_size_(bucket_size), num_buckets_(1) {}
+    : global_depth_(0), bucket_size_(bucket_size), num_buckets_(1) {
+
+      dir_.push_back(std::shared_ptr<Bucket>(new Bucket(bucket_size_)));
+    }
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::IndexOf(const K &key) -> size_t {
   int mask = (1 << global_depth_) - 1;
+
   return std::hash<K>()(key) & mask;
 }
 
@@ -66,17 +72,78 @@ auto ExtendibleHashTable<K, V>::GetNumBucketsInternal() const -> int {
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
-  UNREACHABLE("not implemented");
+  //UNREACHABLE("not implemented");
+  auto it = dir_[IndexOf(key)];
+  if(it->Find(key, value)) { return true; }
+
+  return false;
 }
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
-  UNREACHABLE("not implemented");
+  //UNREACHABLE("not implemented");
+  auto it = dir_[IndexOf(key)];
+  if(it->Remove(key)) { return true; }
+
+  return false;
 }
 
 template <typename K, typename V>
+void ExtendibleHashTable<K, V>::RedistributeBucket(std::shared_ptr<Bucket> bucket) {
+  bucket->IncrementDepth();
+  ++num_buckets_;
+
+  auto list = bucket->GetItems();
+  int index = -1;
+  for(auto& [k, v] : list) {
+    if(index == -1) {
+      dir_[IndexOf(k)] = std::shared_ptr<Bucket>(new Bucket(bucket_size_, bucket->GetDepth()));
+      index = IndexOf(k);
+    }
+    if(index != -1 && (int)IndexOf(k) != index) {
+      dir_[IndexOf(k)] = std::shared_ptr<Bucket>(new Bucket(bucket_size_, bucket->GetDepth()));
+      break;
+    }
+      
+  }
+
+  for(auto& [k, v] : list) {
+    dir_[IndexOf(k)]->Insert(k, v);
+  }
+}
+
+// 插入失败：
+// 1. 如果localdepth等于globaldepth，++globaldepth，dir长度加倍
+// 2. localdepth++，分裂。
+// 3. 继续尝试插入
+// 怎么分裂？
+template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
-  UNREACHABLE("not implemented");
+  //UNREACHABLE("not implemented");
+  
+  std::scoped_lock<std::mutex> lock(latch_);
+  while(true) {
+    auto bucket = dir_[IndexOf(key)];
+
+    if(bucket->Insert(key, value)) break;
+
+    if(bucket->GetDepth() == global_depth_) {
+      ++global_depth_;
+      std::vector<std::shared_ptr<Bucket>> tmp(dir_.size()*2);
+
+      for(int i = 0; i<num_buckets_; ++i) {
+        for(auto& [k, v] : dir_[i]->GetItems()) {
+          tmp[IndexOf(k)] = dir_[i];
+        }
+      }
+
+      dir_.swap(tmp);
+    }
+
+    RedistributeBucket(bucket);
+
+  }
+
 }
 
 //===--------------------------------------------------------------------===//
@@ -87,17 +154,44 @@ ExtendibleHashTable<K, V>::Bucket::Bucket(size_t array_size, int depth) : size_(
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Find(const K &key, V &value) -> bool {
-  UNREACHABLE("not implemented");
+  //UNREACHABLE("not implemented");
+  for(auto& [k, v] : list_) {
+    if(key == k) {
+      value = v;
+      return true;
+    }
+  }
+
+  return false;
 }
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Remove(const K &key) -> bool {
-  UNREACHABLE("not implemented");
+  //UNREACHABLE("not implemented");
+  for(auto& it : list_) {
+    if(it.first == key) {
+      list_.remove(it);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Insert(const K &key, const V &value) -> bool {
-  UNREACHABLE("not implemented");
+  //UNREACHABLE("not implemented");
+  if(IsFull()) { return false; }
+  
+  for(auto& [k, v] : list_) {
+    if(key == k) {
+      v = value;
+      return true;
+    }
+  }
+
+  list_.push_back(std::make_pair(key, value));
+  return true;
 }
 
 template class ExtendibleHashTable<page_id_t, Page *>;
