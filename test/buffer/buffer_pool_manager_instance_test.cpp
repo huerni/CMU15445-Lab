@@ -19,11 +19,13 @@
 #include "buffer/buffer_pool_manager.h"
 #include "gtest/gtest.h"
 
+#include "common/logger.h"
+
 namespace bustub {
 
 // NOLINTNEXTLINE
 // Check whether pages containing terminal characters can be recovered
-TEST(BufferPoolManagerInstanceTest, DISABLED_BinaryDataTest) {
+TEST(BufferPoolManagerInstanceTest, BinaryDataTest) {
   const std::string db_name = "test.db";
   const size_t buffer_pool_size = 10;
   const size_t k = 5;
@@ -41,7 +43,7 @@ TEST(BufferPoolManagerInstanceTest, DISABLED_BinaryDataTest) {
   // Scenario: The buffer pool is empty. We should be able to create a new page.
   ASSERT_NE(nullptr, page0);
   EXPECT_EQ(0, page_id_temp);
-
+  
   char random_binary_data[BUSTUB_PAGE_SIZE];
   // Generate random binary data
   for (char &i : random_binary_data) {
@@ -65,9 +67,10 @@ TEST(BufferPoolManagerInstanceTest, DISABLED_BinaryDataTest) {
   for (size_t i = buffer_pool_size; i < buffer_pool_size * 2; ++i) {
     EXPECT_EQ(nullptr, bpm->NewPage(&page_id_temp));
   }
-
+  
   // Scenario: After unpinning pages {0, 1, 2, 3, 4} we should be able to create 5 new pages
   for (int i = 0; i < 5; ++i) {
+    //LOG_INFO("%d", (bpm->GetPages()+i)->GetPageId());
     EXPECT_EQ(true, bpm->UnpinPage(i, true));
     bpm->FlushPage(i);
   }
@@ -89,7 +92,7 @@ TEST(BufferPoolManagerInstanceTest, DISABLED_BinaryDataTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(BufferPoolManagerInstanceTest, DISABLED_SampleTest) {
+TEST(BufferPoolManagerInstanceTest, SampleTest) {
   const std::string db_name = "test.db";
   const size_t buffer_pool_size = 10;
   const size_t k = 5;

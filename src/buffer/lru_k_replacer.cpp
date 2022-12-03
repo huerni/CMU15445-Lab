@@ -16,7 +16,7 @@ namespace bustub {
 
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
-auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool { 
+auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     std::scoped_lock<std::mutex> lock(latch_);
     ++current_timestamp_;
     size_t mmax = 0;
@@ -94,6 +94,13 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
 void LRUKReplacer::Remove(frame_id_t frame_id) {
     std::scoped_lock<std::mutex> lock(latch_);
     ++current_timestamp_;
+    auto it = cache_.find(frame_id);
+    if(it == cache_.end())
+        return ;
+    if(!is_evictable_.count(frame_id)) {
+        abort();
+    }
+    
     is_evictable_.erase(frame_id);
     cache_.erase(frame_id);
     hast_.erase(frame_id);
