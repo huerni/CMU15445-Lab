@@ -33,7 +33,7 @@ BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, DiskManag
   }
 
   // TODO(students): remove this line after you have implemented the buffer pool manager
-  //throw NotImplementedException(
+  // throw NotImplementedException(
   //    "BufferPoolManager is not implemented yet. If you have finished implementing BPM, please remove the throw "
   //    "exception line in `buffer_pool_manager_instance.cpp`.");
 }
@@ -46,12 +46,11 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
 
 auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   frame_id_t frame_id;
-  if(!free_list_.empty()) {
+  if (!free_list_.empty()) {
     frame_id = free_list_.front();
     free_list_.pop_front();
-  }
-  else {
-    if(!replacer_->Evict(&frame_id)) {
+  } else {
+    if (!replacer_->Evict(&frame_id)) {
       page_id = nullptr;
       return nullptr;
     }
@@ -60,7 +59,7 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   *page_id = AllocatePage();
   Page *page = pages_ + frame_id;
 
-  if(page->IsDirty()) {
+  if (page->IsDirty()) {
     disk_manager_->WritePage(page->GetPageId(), page->GetData());
   }
   page_table_->Remove(page->GetPageId());
@@ -72,25 +71,24 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   replacer_->RecordAccess(frame_id);
   replacer_->SetEvictable(frame_id, false);
 
-  return page; 
+  return page;
 }
 
-auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * { 
+auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   frame_id_t frame_id;
-  if(!page_table_->Find(page_id, frame_id)) {
-    if(!free_list_.empty()) {
+  if (!page_table_->Find(page_id, frame_id)) {
+    if (!free_list_.empty()) {
       frame_id = free_list_.front();
       free_list_.pop_front();
-    }
-    else {
-      if(!replacer_->Evict(&frame_id)) {
+    } else {
+      if (!replacer_->Evict(&frame_id)) {
         return nullptr;
       }
     }
   }
 
   Page *page = pages_ + frame_id;
-  if(page->IsDirty()) {
+  if (page->IsDirty()) {
     disk_manager_->WritePage(page->GetPageId(), page->GetData());
   }
   page_table_->Remove(page->GetPageId());
@@ -104,64 +102,69 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   replacer_->RecordAccess(frame_id);
   replacer_->SetEvictable(frame_id, false);
 
-  return page; 
+  return page;
 }
 
-auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool { 
+auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool {
   frame_id_t frame_id;
-  if(!page_table_->Find(page_id, frame_id))
+  if (!page_table_->Find(page_id, frame_id)) {
     return false;
-  
+  }
+
   Page *page = pages_ + frame_id;
-  if(page->GetPinCount() <= 0)
+  if (page->GetPinCount() <= 0) {
     return false;
-  
+  }
+
   --page->pin_count_;
-  if(page->GetPinCount() == 0) {
+  if (page->GetPinCount() == 0) {
     replacer_->SetEvictable(frame_id, true);
   }
 
   page->is_dirty_ = is_dirty;
 
-  return true; 
+  return true;
 }
 
-auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool { 
+auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
   frame_id_t frame_id;
-  if(!page_table_->Find(page_id, frame_id)) { return false; }
+  if (!page_table_->Find(page_id, frame_id)) {
+    return false;
+  }
 
   Page *page = pages_ + frame_id;
   disk_manager_->WritePage(page_id, page->GetData());
   page->is_dirty_ = false;
 
-  return true; 
+  return true;
 }
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
-  for(size_t i = 0; i<pool_size_; ++i) {
+  for (size_t i = 0; i < pool_size_; ++i) {
     Page *page = pages_ + i;
-    if(page->GetPageId() != INVALID_PAGE_ID) {
+    if (page->GetPageId() != INVALID_PAGE_ID) {
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
     }
   }
 }
 
-auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool { 
+auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   frame_id_t frame_id;
-  if(!page_table_->Find(page_id, frame_id))
+  if (!page_table_->Find(page_id, frame_id)) {
     return true;
-  
+  }
+
   Page *page = pages_ + frame_id;
-  if(page->GetPinCount() > 0) {
+  if (page->GetPinCount() > 0) {
     return false;
   }
 
   page_table_->Remove(page_id);
   replacer_->Remove(frame_id);
   free_list_.push_back(frame_id);
-  //DeallocatePage();
+  // DeallocatePage();
 
-  return true; 
+  return true;
 }
 
 auto BufferPoolManagerInstance::AllocatePage() -> page_id_t { return next_page_id_++; }

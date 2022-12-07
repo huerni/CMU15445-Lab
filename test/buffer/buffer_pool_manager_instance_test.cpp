@@ -43,7 +43,7 @@ TEST(BufferPoolManagerInstanceTest, BinaryDataTest) {
   // Scenario: The buffer pool is empty. We should be able to create a new page.
   ASSERT_NE(nullptr, page0);
   EXPECT_EQ(0, page_id_temp);
-  
+
   char random_binary_data[BUSTUB_PAGE_SIZE];
   // Generate random binary data
   for (char &i : random_binary_data) {
@@ -67,10 +67,10 @@ TEST(BufferPoolManagerInstanceTest, BinaryDataTest) {
   for (size_t i = buffer_pool_size; i < buffer_pool_size * 2; ++i) {
     EXPECT_EQ(nullptr, bpm->NewPage(&page_id_temp));
   }
-  
+
   // Scenario: After unpinning pages {0, 1, 2, 3, 4} we should be able to create 5 new pages
   for (int i = 0; i < 5; ++i) {
-    //LOG_INFO("%d", (bpm->GetPages()+i)->GetPageId());
+    // LOG_INFO("%d", (bpm->GetPages()+i)->GetPageId());
     EXPECT_EQ(true, bpm->UnpinPage(i, true));
     bpm->FlushPage(i);
   }

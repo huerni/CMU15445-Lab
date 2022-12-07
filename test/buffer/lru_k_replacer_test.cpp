@@ -51,7 +51,6 @@ TEST(LRUKReplacerTest, SampleTest) {
 
   // Scenario: Now replacer has frames [5,1].
   // Insert new frames 3, 4, and update access history for 5. We should end with [3,1,5,4]
-  // TODO: 3154?? 访问次数？
   lru_replacer.RecordAccess(3);
   lru_replacer.RecordAccess(4);
   lru_replacer.RecordAccess(5);
