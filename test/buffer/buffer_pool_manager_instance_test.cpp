@@ -148,4 +148,47 @@ TEST(BufferPoolManagerInstanceTest, SampleTest) {
   delete disk_manager;
 }
 
+TEST(BufferPoolManagerInstanceTest, FetchPageTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 10;
+  const size_t k = 5;
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManagerInstance(buffer_pool_size, disk_manager, k);
+
+  page_id_t page_id_temp;
+  for (size_t i = 0; i < 10; ++i) {
+    EXPECT_NE(nullptr, bpm->NewPage(&page_id_temp));
+  }
+
+  auto *page = bpm->FetchPage(0);
+  LOG_INFO("page:%d", page->GetPageId());
+
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
+TEST(BufferPoolManagerInstanceTest, IsDirtyTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 1;
+  const size_t k = 5;
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManagerInstance(buffer_pool_size, disk_manager, k);
+
+  page_id_t page_id_temp;
+  bpm->NewPage(&page_id_temp);
+  bpm->UnpinPage(0, true);
+  EXPECT_EQ(true, bpm->FetchPage(0)->IsDirty());
+
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
 }  // namespace bustub

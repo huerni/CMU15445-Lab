@@ -22,6 +22,8 @@
 #include "common/config.h"
 #include "common/macros.h"
 
+#include "common/logger.h"
+
 namespace bustub {
 
 /**
