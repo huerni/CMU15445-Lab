@@ -23,7 +23,7 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return root_page_id_ == INVALID_PAGE_ID; }
 
-INDEX_TEMPLATE_ARGUMENTS 
+INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::FindLeaf(const KeyType &key) -> LeafPage * {
   auto *page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
 
@@ -90,6 +90,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     auto *leaf = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
     leaf->Init(root_page_id_, INVALID_PAGE_ID, leaf_max_size_);
     leaf->PushKey(key, value, comparator_);
+    buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
     UpdateRootPageId(true);
     return true;
   }
@@ -142,7 +143,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     if (result->IsLeafPage()) {
       auto *rightleaf = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(right_page_id)->GetData());
       auto *leftleaf = reinterpret_cast<LeafPage *>(result);
-      // TODO: error: address points to the zero page.(setPageType) ??
+      // error: address points to the zero page.(setPageType) ??
       rightleaf->Init(right_page_id, parent_page_id, leaf_max_size_);
       rightleaf->SetNextPageId(leftleaf->GetNextPageId());
       leftleaf->SetNextPageId(right_page_id);

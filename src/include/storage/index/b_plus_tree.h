@@ -48,7 +48,7 @@ class BPlusTree {
 
   auto FindLeaf(const KeyType &key) -> LeafPage *;
 
-  //auto InsertInParent(BPlusTreePage* node, KeyType &key, ValueType &value) -> bool;
+  // auto InsertInParent(BPlusTreePage* node, KeyType &key, ValueType &value) -> bool;
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
