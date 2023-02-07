@@ -19,7 +19,7 @@
 namespace bustub {
 
 // NOLINTNEXTLINE
-TEST(TmpTuplePageTest, DISABLED_BasicTest) {
+TEST(TmpTuplePageTest, DISABLE_BasicTest) {
   // There are many ways to do this assignment, and this is only one of them.
   // If you don't like the TmpTuplePage idea, please feel free to delete this test case entirely.
   // You will get full credit as long as you are correctly using a linear probe hash table.

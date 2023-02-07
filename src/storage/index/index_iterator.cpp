@@ -12,19 +12,34 @@ namespace bustub {
  * set your own input parameters
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator() = default;
+INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *buffer_pool_manager, LeafPage *leaf, int index)
+    : buffer_pool_manager_(buffer_pool_manager), iter_(leaf), index_(index) {}
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::IsEnd() -> bool {
+  return iter_->GetNextPageId() == INVALID_PAGE_ID && index_ == iter_->GetSize();
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return iter_->GetKeyValue(index_); }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
+  ++index_;
+  if (IsEnd()) {
+    return *this;
+  }
+
+  if (index_ == iter_->GetSize()) {
+    iter_ = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(iter_->GetNextPageId())->GetData());
+    index_ = 0;
+  }
+
+  return *this;
+}
 
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 

@@ -50,9 +50,15 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
 
+  auto PushKey(const KeyType &key, const ValueType &value, KeyComparator comparator) -> bool;
+  auto DeleteKey(const KeyType &key, KeyComparator comparator) -> int;
+  auto ValueAt(int index) const -> ValueType;
+  auto GetKeyValue(int index) -> const MappingType &;
+
  private:
   page_id_t next_page_id_;
   // Flexible array member for page data.
   MappingType array_[1];
+  // std::vector<MappingType> array_;
 };
 }  // namespace bustub

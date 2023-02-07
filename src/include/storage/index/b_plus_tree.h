@@ -32,6 +32,7 @@ namespace bustub {
  * (2) support insert & remove
  * (3) The structure should shrink and grow dynamically
  * (4) Implement index iterator for range scan
+ *
  */
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTree {
@@ -45,11 +46,17 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
+  auto FindLeaf(const KeyType &key) -> LeafPage *;
+
+  //auto InsertInParent(BPlusTreePage* node, KeyType &key, ValueType &value) -> bool;
+
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
+
+  void AlterKey(page_id_t p_page_id, const KeyType &old_key, const KeyType &new_key);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
