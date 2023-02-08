@@ -99,6 +99,7 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
     }
     left->SetParentPageId(parent_page_id);
     right->SetParentPageId(parent_page_id);
+    buffer_pool_manager_->UnpinPage(parent_page_id, true);
     UpdateRootPageId(false);
     return;
   }
@@ -125,6 +126,8 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
       child->SetParentPageId(right_page_id);
       buffer_pool_manager_->UnpinPage(child->GetPageId(), true);
     }
+    curr_internal->SetSize(mid);
+    // LOG_INFO("%d, %d", curr_internal->GetMaxSize(), right_internal->GetMaxSize());
     InsertInParent(curr_internal, right_internal);
     buffer_pool_manager_->UnpinPage(right_internal->GetPageId(), true);
   }
@@ -164,11 +167,13 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       rightleaf->PushKey(leaf->KeyAt(right_id), leaf->ValueAt(right_id), comparator_);
     }
     leaf->SetSize(mid);
+    // LOG_INFO("%d, %d", leaf->GetMaxSize(), rightleaf->GetMaxSize());
     InsertInParent(leaf, rightleaf);
     buffer_pool_manager_->UnpinPage(rightleaf->GetPageId(), true);
   }
 
   buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
+
   return true;
 }
 
@@ -193,13 +198,13 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   // page_id_t page_id = INVALID_PAGE_ID;
   while (!page->IsLeafPage()) {
     auto *internal = reinterpret_cast<InternalPage *>(page);
-    buffer_pool_manager_->UnpinPage(page->GetPageId(), false);
+    // buffer_pool_manager_->UnpinPage(page->GetPageId(), false);
     for (int i = 1; i <= internal->GetSize(); ++i) {
       page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(internal->ValueAt(i - 1))->GetData());
       if (comparator_(internal->KeyAt(i), key) > 0) {
         break;
       }
-      buffer_pool_manager_->UnpinPage(page->GetPageId(), false);
+      // buffer_pool_manager_->UnpinPage(page->GetPageId(), false);
     }
   }
 
@@ -212,6 +217,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
 
   // 如果叶子结点为根结点
   if (page->IsRootPage()) {
+    // buffer_pool_manager_->UnpinPage(root_page_id_, true);
     if (page->GetSize() == 0) {
       buffer_pool_manager_->DeletePage(root_page_id_);
       root_page_id_ = INVALID_PAGE_ID;
@@ -229,6 +235,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       page_id_t page_id = leaf->GetParentPageId();
       AlterKey(page_id, key, leaf->KeyAt(index));
     }
+    // buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
   } else {
     auto *parent =
         reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(leaf->GetParentPageId())->GetData());
@@ -253,6 +260,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       left_bro->DeleteKey(left_bro->KeyAt(size - 1), comparator_);
       // 修改祖先结点key
       AlterKey(leaf->GetParentPageId(), key, leaf->KeyAt(0));
+
+      // buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
+      // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
+      // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), false);
+      // buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
       return;
     }
     // 成功借右兄弟
@@ -262,6 +274,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       right_bro->DeleteKey(right_bro->KeyAt(0), comparator_);
       // 修改祖先结点key
       AlterKey(right_bro->GetParentPageId(), old_key, right_bro->KeyAt(0));
+
+      // buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
+      // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), false);
+      // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
+      // buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
       return;
     }
 
@@ -277,14 +294,21 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       for (int i = 0; i < leaf->GetSize(); ++i) {
         left_bro->PushKey(leaf->KeyAt(i), leaf->ValueAt(i), comparator_);
       }
+
+      // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
+      // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), false);
     } else if (right_bro != nullptr) {
       KeyType old_key = right_bro->KeyAt(0);
       for (int i = 0; i < leaf->GetSize(); ++i) {
         right_bro->PushKey(leaf->KeyAt(i), leaf->ValueAt(i), comparator_);
       }
       AlterKey(right_bro->GetParentPageId(), old_key, right_bro->KeyAt(0));
+
+      // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), false);
+      // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
     }
     // 删除leafpage
+    // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
     buffer_pool_manager_->DeletePage(leaf->GetPageId());
 
     // 处理祖先结点，直到根结点
@@ -313,6 +337,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         // 修改祖先结点key
         AlterKey(iter->GetParentPageId(), parent->KeyAt(vi), left_bro->KeyAt(size - 1));
         left_bro->DeleteKey(left_bro->KeyAt(size - 1), comparator_);
+
+        // buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), false);
+        // buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
         return;
       }
       if (right_bro != nullptr && right_bro->GetSize() > right_bro->GetMinSize()) {
@@ -320,9 +349,13 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         right_bro->DeleteKey(right_bro->KeyAt(0), comparator_);
         // 修改祖先结点key
         AlterKey(right_bro->GetParentPageId(), parent->KeyAt(vi), right_bro->KeyAt(0));
+
+        // buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), false);
+        // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
         return;
       }
-
       // 左右都不能借，父节点下移，合并
       // 合并左兄弟
       if (left_bro != nullptr) {
@@ -336,6 +369,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         if (!parent->IsRootPage()) {
           AlterKey(parent->GetParentPageId(), old_key, parent->KeyAt(0));
         }
+        // buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), false);
         buffer_pool_manager_->DeletePage(left_bro->GetPageId());
         buffer_pool_manager_->DeletePage(iter->GetPageId());
       } else if (right_bro != nullptr) {  // 合并右兄弟
@@ -349,10 +385,12 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         if (!parent->IsRootPage()) {
           AlterKey(parent->GetParentPageId(), old_key, parent->KeyAt(0));
         }
+        // buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
+        // buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), false);
+        // buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
         buffer_pool_manager_->DeletePage(right_bro->GetPageId());
         buffer_pool_manager_->DeletePage(iter->GetPageId());
       }
-
       iter = parent;
     }
   }
@@ -362,12 +400,19 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::AlterKey(page_id_t p_page_id, const KeyType &old_key, const KeyType &new_key) {
   while (p_page_id != INVALID_PAGE_ID) {
     auto *parent = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(p_page_id)->GetData());
-    for (int i = 1; i <= parent->GetSize(); ++i) {
+    int i = 1;
+    for (; i < parent->GetSize(); ++i) {
       if (comparator_(parent->KeyAt(i), old_key) == 0) {
         parent->SetKeyAt(i, new_key);
         break;
       }
     }
+    if (i == parent->GetSize()) {
+      buffer_pool_manager_->UnpinPage(p_page_id, false);
+    } else {
+      buffer_pool_manager_->UnpinPage(p_page_id, true);
+    }
+
     p_page_id = parent->GetParentPageId();
   }
 }
@@ -468,7 +513,7 @@ void BPLUSTREE_TYPE::UpdateRootPageId(int insert_record) {
     // update root_page_id in header_page
     header_page->UpdateRecord(index_name_, root_page_id_);
   }
-  buffer_pool_manager_->UnpinPage(HEADER_PAGE_ID, true);
+  // buffer_pool_manager_->UnpinPage(HEADER_PAGE_ID, true);
 }
 
 /*
