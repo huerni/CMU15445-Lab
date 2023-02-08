@@ -150,6 +150,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       for (int right_id = mid; right_id < result->GetMaxSize(); ++right_id) {
         rightleaf->PushKey(leftleaf->KeyAt(right_id), leftleaf->ValueAt(right_id), comparator_);
       }
+      buffer_pool_manager_->UnpinPage(rightleaf->GetPageId(), true);
       (reinterpret_cast<InternalPage *>(parent))->PushKey(leftleaf->KeyAt(mid), right_page_id, comparator_);
     } else {
       auto *right_internal = reinterpret_cast<InternalPage *>(right);
@@ -159,7 +160,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       for (int right_id = mid; right_id < result->GetMaxSize(); ++right_id) {
         right_internal->PushKey(left_internal->KeyAt(right_id), left_internal->ValueAt(right_id), comparator_);
       }
-
+  
       (reinterpret_cast<InternalPage *>(parent))->PushKey(left_internal->KeyAt(mid), right_page_id, comparator_);
     }
 
