@@ -18,6 +18,8 @@
 #include "buffer/buffer_pool_manager.h"
 #include "storage/index/generic_key.h"
 
+#include "common/rwlatch.h"
+
 namespace bustub {
 
 #define MappingType std::pair<KeyType, ValueType>
@@ -62,6 +64,18 @@ class BPlusTreePage {
 
   void SetLSN(lsn_t lsn = INVALID_LSN);
 
+  /** Acquire the page write latch. */
+  inline void WLatch() { rwlatch_.WLock(); }
+
+  /** Release the page write latch. */
+  inline void WUnlatch() { rwlatch_.WUnlock(); }
+
+  /** Acquire the page read latch. */
+  inline void RLatch() { rwlatch_.RLock(); }
+
+  /** Release the page read latch. */
+  inline void RUnlatch() { rwlatch_.RUnlock(); }
+
  private:
   // member variable, attributes that both internal and leaf page share
   IndexPageType page_type_;
@@ -70,6 +84,9 @@ class BPlusTreePage {
   int max_size_;
   page_id_t parent_page_id_;
   page_id_t page_id_;
+
+  /** Page latch. */
+  ReaderWriterLatch rwlatch_;
 };
 
 }  // namespace bustub
