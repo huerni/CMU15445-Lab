@@ -35,6 +35,7 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
 
   if (index_ == iter_->GetSize()) {
     iter_ = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(iter_->GetNextPageId())->GetData());
+    buffer_pool_manager_->UnpinPage(iter_->GetNextPageId(), true);
     index_ = 0;
   }
 
