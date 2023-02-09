@@ -30,14 +30,17 @@ auto BPLUSTREE_TYPE::FindLeaf(const KeyType &key) -> LeafPage * {
   while (!page->IsLeafPage()) {
     auto *internal = reinterpret_cast<InternalPage *>(page);
     buffer_pool_manager_->UnpinPage(internal->GetPageId(), false);
-    int i = 1;
-    for (; i <= internal->GetSize(); ++i) {
-      page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(internal->ValueAt(i - 1))->GetData());
-      if (i < internal->GetSize() && comparator_(internal->KeyAt(i), key) > 0) {
-        break;
+    int l = 1;
+    int r = internal->GetSize();
+    while (l < r) {
+      int mid = (l + r) / 2;
+      if (comparator_(internal->KeyAt(mid), key) > 0) {
+        r = mid;
+      } else {
+        l = mid + 1;
       }
-      buffer_pool_manager_->UnpinPage(page->GetPageId(), false);
     }
+    page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(internal->ValueAt(l - 1))->GetData());
   }
 
   return reinterpret_cast<LeafPage *>(page);
