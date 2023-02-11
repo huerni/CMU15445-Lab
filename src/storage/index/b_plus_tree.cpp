@@ -61,6 +61,7 @@ auto BPLUSTREE_TYPE::FindLeaf(const KeyType &key) -> LeafPage * {
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
+  LOG_INFO("GetValue");
   if (IsEmpty()) {
     return false;
   }
@@ -90,7 +91,6 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
-  // LOG_INFO("InsertInParent");
   if (left->IsRootPage()) {
     auto *parent_internal = reinterpret_cast<InternalPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
     parent_internal->Init(root_page_id_, INVALID_PAGE_ID, internal_max_size_);
@@ -139,8 +139,8 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
-  // LOG_INFO("Insert");
   std::scoped_lock<std::mutex> lock(latch_);
+  LOG_INFO("Insert");
   // 空树插入
   if (IsEmpty()) {
     auto *leaf = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
@@ -176,7 +176,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   }
 
   buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
-
+  Print(buffer_pool_manager_);
   return true;
 }
 
@@ -193,6 +193,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   std::scoped_lock<std::mutex> lock(latch_);
+  LOG_INFO("REMOVE");
   if (IsEmpty()) {
     return;
   }
