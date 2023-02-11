@@ -60,6 +60,7 @@ auto BPLUSTREE_TYPE::FindLeaf(const KeyType &key) -> LeafPage * {
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
+  std::scoped_lock<std::mutex> lock(latch_);
   if (IsEmpty()) {
     return false;
   }
@@ -89,10 +90,9 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
+  // LOG_INFO("InsertInParent");
   if (left->IsRootPage()) {
-    page_id_t parent_page_id;
-    auto *parent_internal = reinterpret_cast<InternalPage *>(buffer_pool_manager_->NewPage(&parent_page_id)->GetData());
-    root_page_id_ = parent_page_id;
+    auto *parent_internal = reinterpret_cast<InternalPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
     parent_internal->Init(root_page_id_, INVALID_PAGE_ID, internal_max_size_);
     if (left->IsLeafPage()) {
       parent_internal->PushKey(reinterpret_cast<LeafPage *>(left)->KeyAt(0), left->GetPageId(), comparator_);
@@ -101,9 +101,9 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
       parent_internal->PushKey(reinterpret_cast<InternalPage *>(left)->KeyAt(0), left->GetPageId(), comparator_);
       parent_internal->PushKey(reinterpret_cast<InternalPage *>(right)->KeyAt(0), right->GetPageId(), comparator_);
     }
-    left->SetParentPageId(parent_page_id);
-    right->SetParentPageId(parent_page_id);
-    buffer_pool_manager_->UnpinPage(parent_page_id, true);
+    left->SetParentPageId(root_page_id_);
+    right->SetParentPageId(root_page_id_);
+    buffer_pool_manager_->UnpinPage(root_page_id_, true);
     UpdateRootPageId(false);
     return;
   }
@@ -115,9 +115,6 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
   } else {
     curr_internal->PushKey(reinterpret_cast<InternalPage *>(right)->KeyAt(0), right->GetPageId(), comparator_);
   }
-
-  buffer_pool_manager_->UnpinPage(left->GetPageId(), true);
-  buffer_pool_manager_->UnpinPage(right->GetPageId(), true);
 
   if (curr_internal->GetSize() == curr_internal->GetMaxSize()) {
     int mid = curr_internal->GetSize() / 2;
@@ -142,6 +139,8 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
+  // LOG_INFO("Insert");
+  std::scoped_lock<std::mutex> lock(latch_);
   // 空树插入
   if (IsEmpty()) {
     auto *leaf = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
@@ -149,6 +148,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     leaf->PushKey(key, value, comparator_);
     UpdateRootPageId(true);
     buffer_pool_manager_->UnpinPage(root_page_id_, true);
+    Print(buffer_pool_manager_);
     return true;
   }
 
@@ -192,6 +192,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
+  std::scoped_lock<std::mutex> lock(latch_);
   if (IsEmpty()) {
     return;
   }

@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <mutex>  // NOLINT
 #include <queue>
 #include <string>
 #include <vector>
@@ -96,6 +97,8 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+
+  std::mutex latch_;
 };
 
 }  // namespace bustub

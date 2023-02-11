@@ -60,7 +60,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &valu
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &value, KeyComparator comparator) {
+  // LOG_INFO("push");
   int size = GetSize();
+  // LOG_INFO("size:%d", size);
   int i = 0;
   for (; i < size; ++i) {
     if (comparator(KeyAt(i), key) > 0) {
@@ -73,6 +75,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType
   }
   array_[i] = std::make_pair(key, value);
   IncreaseSize(1);
+  // LOG_INFO("push ok");
 }
 
 INDEX_TEMPLATE_ARGUMENTS

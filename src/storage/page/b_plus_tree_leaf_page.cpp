@@ -35,8 +35,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, in
   SetParentPageId(parent_id);
   SetMaxSize(max_size);
   SetPageType(IndexPageType::LEAF_PAGE);
-
-  next_page_id_ = INVALID_PAGE_ID;
+  SetNextPageId(INVALID_PAGE_ID);
 }
 
 /**
@@ -67,7 +66,6 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &va
     if (comparator(KeyAt(i), key) == 0) {
       return false;
     }
-
     if (comparator(KeyAt(i), key) > 0) {
       break;
     }
@@ -78,7 +76,6 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &va
   }
   array_[i] = std::make_pair(key, value);
   IncreaseSize(1);
-
   return true;
 }
 

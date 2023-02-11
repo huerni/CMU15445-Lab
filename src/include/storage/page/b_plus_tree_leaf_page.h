@@ -59,6 +59,5 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   page_id_t next_page_id_;
   // Flexible array member for page data.
   MappingType array_[1];
-  // std::vector<MappingType> array_;
 };
 }  // namespace bustub
