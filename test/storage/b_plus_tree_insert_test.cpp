@@ -92,8 +92,6 @@ TEST(BPlusTreeTests, InsertTest2) {
     tree.Insert(index_key, rid, transaction);
   }
 
-  tree.Draw(bpm, "build/my-tree.dot");
-
   std::vector<RID> rids;
   for (auto key : keys) {
     rids.clear();
@@ -157,7 +155,7 @@ TEST(BPlusTreeTests, InsertTest3) {
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
   }
-  tree.Draw(bpm, "/home/cgBustub/build/my-tree.dot");
+
   std::vector<RID> rids;
   for (auto key : keys) {
     rids.clear();

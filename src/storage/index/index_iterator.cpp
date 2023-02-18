@@ -30,10 +30,12 @@ INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   ++index_;
   if (IsEnd()) {
+    buffer_pool_manager_->UnpinPage(iter_->GetPageId(), true);
     return *this;
   }
 
   if (index_ == iter_->GetSize()) {
+    buffer_pool_manager_->UnpinPage(iter_->GetPageId(), true);
     iter_ = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(iter_->GetNextPageId())->GetData());
     buffer_pool_manager_->UnpinPage(iter_->GetNextPageId(), true);
     index_ = 0;

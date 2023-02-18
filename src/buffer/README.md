@@ -1,3 +1,5 @@
+# lru与clock
+顺序泛洪问题  
 # lru_k_replacer  
 ```
 make lru_k_replacer_test -j$(nproc)
@@ -61,3 +63,6 @@ page引用数减1
 
 ## DeletePgImp
 删除buffer pool中没有修改，没有引用的指定page
+
+## 参考资料
+https://segmentfault.com/a/1190000022558044  

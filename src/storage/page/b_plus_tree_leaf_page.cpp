@@ -87,12 +87,14 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::DeleteKey(const KeyType &key, KeyComparator com
       break;
     }
   }
-  for (int j = i + 1; j < GetSize(); ++j) {
-    array_[j - 1] = array_[j];
-  }
   if (i == GetSize()) {
     return -1;
   }
+
+  for (int j = i + 1; j < GetSize(); ++j) {
+    array_[j - 1] = array_[j];
+  }
+
   IncreaseSize(-1);
   return i;
 }

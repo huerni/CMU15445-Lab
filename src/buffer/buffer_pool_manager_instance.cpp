@@ -52,12 +52,10 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   if (!free_list_.empty()) {
     frame_id = free_list_.front();
     free_list_.pop_front();
-  } else {
-    if (!replacer_->Evict(&frame_id)) {
-      page_id = nullptr;
-      latch_.unlock();
-      return nullptr;
-    }
+  } else if (!replacer_->Evict(&frame_id)) {
+    page_id = nullptr;
+    latch_.unlock();
+    return nullptr;
   }
 
   *page_id = AllocatePage();
@@ -102,6 +100,7 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
     return &pages_[frame_id];
   }
 
+  // 没找到，磁盘读取，替换帧
   Page *page = &pages_[frame_id];
   if (page->IsDirty()) {
     disk_manager_->WritePage(page->GetPageId(), page->GetData());
@@ -196,9 +195,11 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
     return false;
   }
 
+  page->ResetMemory();
   page_table_->Remove(page_id);
   replacer_->Remove(frame_id);
   free_list_.push_back(frame_id);
+
   DeallocatePage(page_id);
   latch_.unlock();
   return true;

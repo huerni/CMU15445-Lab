@@ -60,9 +60,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &valu
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &value, KeyComparator comparator) {
-  // LOG_INFO("push");
   int size = GetSize();
-  // LOG_INFO("size:%d", size);
   int i = 0;
   for (; i < size; ++i) {
     if (comparator(KeyAt(i), key) > 0) {
@@ -70,28 +68,30 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType
     }
   }
 
+  IncreaseSize(1);
+
   for (int j = size - 1; j >= i; --j) {
     array_[j + 1] = array_[j];
   }
   array_[i] = std::make_pair(key, value);
-  IncreaseSize(1);
-  // LOG_INFO("push ok");
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteKey(const KeyType &key, KeyComparator comparator) -> int {
-  int i = 1;
-  for (; i < GetSize(); ++i) {
+  int size = GetSize();
+  int i = 0;
+  for (; i < size; ++i) {
     if (comparator(KeyAt(i), key) == 0) {
       break;
     }
   }
-  for (int j = i + 1; j < GetSize(); ++j) {
-    array_[j - 1] = array_[j];
+
+  if (i >= size) {
+    return -1;
   }
 
-  if (i >= GetSize()) {
-    return -1;
+  for (int j = i + 1; j < size; ++j) {
+    array_[j - 1] = array_[j];
   }
 
   IncreaseSize(-1);
