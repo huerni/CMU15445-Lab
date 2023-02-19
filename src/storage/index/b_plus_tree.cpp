@@ -61,6 +61,7 @@ auto BPLUSTREE_TYPE::FindLeaf(const KeyType &key) -> LeafPage * {
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
+  LOG_INFO("GetValue");
   if (IsEmpty()) {
     return false;
   }
@@ -123,7 +124,7 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
     page_id_t right_page_id;
     auto *right_internal = reinterpret_cast<InternalPage *>(buffer_pool_manager_->NewPage(&right_page_id)->GetData());
     right_internal->Init(right_page_id, curr_internal->GetParentPageId(), internal_max_size_);
-    for (int right_id = mid; right_id <= curr_internal->GetMaxSize(); ++right_id) {
+    for (int right_id = mid; right_id < curr_internal->GetSize(); ++right_id) {
       right_internal->PushKey(curr_internal->KeyAt(right_id), curr_internal->ValueAt(right_id), comparator_);
     }
     for (int i = 0; i < right_internal->GetSize(); ++i) {
@@ -141,7 +142,8 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right) {
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
-  std::scoped_lock<std::mutex> lock(latch_);
+  latch_.lock();
+  LOG_INFO("Insert");
   // 空树插入
   if (IsEmpty()) {
     auto *leaf = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
@@ -149,6 +151,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     leaf->PushKey(key, value, comparator_);
     UpdateRootPageId(true);
     buffer_pool_manager_->UnpinPage(root_page_id_, true);
+    latch_.unlock();
     return true;
   }
 
@@ -156,6 +159,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   auto *leaf = FindLeaf(key);
   if (!leaf->PushKey(key, value, comparator_)) {
     buffer_pool_manager_->UnpinPage(leaf->GetPageId(), false);
+    latch_.unlock();
     return false;
   }
   // 分裂
@@ -175,6 +179,8 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   } else {
     buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
   }
+
+  latch_.unlock();
   return true;
 }
 
@@ -190,8 +196,10 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
-  std::scoped_lock<std::mutex> lock(latch_);
+  latch_.lock();
+  LOG_INFO("Remove");
   if (IsEmpty()) {
+    latch_.unlock();
     return;
   }
 
@@ -200,26 +208,29 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   int index = leaf->DeleteKey(key, comparator_);
   if (index == -1) {
     buffer_pool_manager_->UnpinPage(leaf->GetPageId(), false);
+    latch_.unlock();
     return;
   }
-  // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
-  // 如果叶子结点为根结点
+
+  // 如果叶子结点为根结点,即b+树只有一个节点
   if (leaf->IsRootPage()) {
     if (leaf->GetSize() == 0) {
       UpdateRootPageId(true);
-      root_page_id_ = INVALID_PAGE_ID;
       buffer_pool_manager_->UnpinPage(root_page_id_, true);
       buffer_pool_manager_->DeletePage(root_page_id_);
       transaction->AddIntoDeletedPageSet(root_page_id_);
+      root_page_id_ = INVALID_PAGE_ID;
     } else {
       buffer_pool_manager_->UnpinPage(root_page_id_, true);
     }
-
+    // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+    latch_.unlock();
     return;
   }
 
   // 先删除，然后再判断
   // 如果需要合并，则父节点删除key，并一直向上判断是否需要借或合并
+  // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
   if (leaf->GetSize() < leaf->GetMinSize()) {
     auto *parent =
         reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(leaf->GetParentPageId())->GetData());
@@ -231,10 +242,6 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       }
     }
 
-    if (index == 0) {
-      parent->SetKeyAt(vi, leaf->KeyAt(0));
-    }
-
     LeafPage *left_bro =
         vi > 0 ? reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(parent->ValueAt(vi - 1))->GetData())
                : nullptr;
@@ -242,12 +249,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
     if (left_bro != nullptr && left_bro->GetSize() > left_bro->GetMinSize()) {
       int size = left_bro->GetSize();
       leaf->PushKey(left_bro->KeyAt(size - 1), left_bro->ValueAt(size - 1), comparator_);
-      left_bro->DeleteKey(left_bro->KeyAt(size - 1), comparator_);
+      left_bro->IncreaseSize(-1);
       // 修改祖先结点key
       parent->SetKeyAt(vi, leaf->KeyAt(0));
       buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
       buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
       buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
+      // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+      latch_.unlock();
       return;
     }
 
@@ -264,11 +273,12 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
       buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
       buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
+      // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+      latch_.unlock();
       return;
     }
 
     // 左右都不能借，删除合并
-    parent->DeleteKey(leaf->KeyAt(0), comparator_);
     // 合并左兄弟
     if (left_bro != nullptr) {
       left_bro->SetNextPageId(leaf->GetNextPageId());
@@ -276,18 +286,25 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         left_bro->PushKey(leaf->KeyAt(i), leaf->ValueAt(i), comparator_);
       }
       buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
-    } else if (right_bro != nullptr) {
-      for (int i = 0; i < leaf->GetSize(); ++i) {
-        right_bro->PushKey(leaf->KeyAt(i), leaf->ValueAt(i), comparator_);
+      // 删除leafpage
+      parent->DeleteWithValue(leaf->GetPageId());
+      buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
+      buffer_pool_manager_->DeletePage(leaf->GetPageId());
+      transaction->AddIntoDeletedPageSet(leaf->GetPageId());
+    } else if (right_bro != nullptr) {  // 合并右兄弟
+      leaf->SetNextPageId(right_bro->GetNextPageId());
+      for (int i = 0; i < right_bro->GetSize(); ++i) {
+        leaf->PushKey(right_bro->KeyAt(i), right_bro->ValueAt(i), comparator_);
       }
-      parent->SetKeyAt(vi + 1, right_bro->KeyAt(0));
       buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
+      parent->DeleteWithValue(right_bro->GetPageId());
+      parent->SetKeyAt(vi, leaf->KeyAt(0));
+      buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
+      buffer_pool_manager_->DeletePage(right_bro->GetPageId());
+      transaction->AddIntoDeletedPageSet(right_bro->GetPageId());
     }
-    // 删除leafpage
-    buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
-    buffer_pool_manager_->DeletePage(leaf->GetPageId());
-    transaction->AddIntoDeletedPageSet(leaf->GetPageId());
 
+    // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
     // 处理祖先结点，直到根结点
     auto *iter = parent;
     while (iter->GetSize() - 1 < iter->GetMinSize() && !iter->IsRootPage()) {
@@ -298,9 +315,6 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
           break;
         }
       }
-      if (comparator_(parent->KeyAt(vi), iter->KeyAt(0)) != 0) {
-        parent->SetKeyAt(vi, iter->KeyAt(0));
-      }
 
       InternalPage *left_bro =
           vi > 0 ? reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(parent->ValueAt(vi - 1))->GetData())
@@ -309,14 +323,22 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       // 左兄弟有富余
       if (left_bro != nullptr && left_bro->GetSize() - 1 > left_bro->GetMinSize()) {
         int size = left_bro->GetSize();
-        iter->PushKey(parent->KeyAt(vi), left_bro->ValueAt(size - 1), comparator_);
+        iter->PushKey(left_bro->KeyAt(size - 1), left_bro->ValueAt(size - 1), comparator_);
+        auto *child =
+            reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(left_bro->ValueAt(size - 1))->GetData());
+        child->SetParentPageId(iter->GetPageId());
+        buffer_pool_manager_->UnpinPage(child->GetPageId(), true);
+        // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+        left_bro->DeleteKey(left_bro->KeyAt(size - 1), comparator_);
+        // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
         // 修改祖先结点key
         parent->SetKeyAt(vi, iter->KeyAt(0));
-        // AlterKey(iter->GetParentPageId(), parent->KeyAt(vi), left_bro->KeyAt(size - 1));
-        left_bro->IncreaseSize(-1);
+        // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
         buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
         buffer_pool_manager_->UnpinPage(left_bro->GetPageId(), true);
         buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
+        // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+        latch_.unlock();
         return;
       }
 
@@ -327,17 +349,22 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       // 右兄弟有富余
       if (right_bro != nullptr && right_bro->GetSize() - 1 > right_bro->GetMinSize()) {
         iter->PushKey(right_bro->KeyAt(0), right_bro->ValueAt(0), comparator_);
+        auto *child =
+            reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(right_bro->ValueAt(0))->GetData());
+        child->SetParentPageId(iter->GetPageId());
+        buffer_pool_manager_->UnpinPage(child->GetPageId(), true);
         right_bro->DeleteKey(right_bro->KeyAt(0), comparator_);
         // 修改祖先结点key
         parent->SetKeyAt(vi + 1, right_bro->KeyAt(0));
         buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
         buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
         buffer_pool_manager_->UnpinPage(parent->GetPageId(), false);
+        // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+        latch_.unlock();
         return;
       }
 
       // 左右都不能借，父节点key下移，合并
-      parent->DeleteKey(iter->KeyAt(0), comparator_);
       // 合并左兄弟
       if (left_bro != nullptr) {
         for (int i = 0; i < iter->GetSize(); ++i) {
@@ -357,7 +384,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         parent->SetKeyAt(vi + 1, right_bro->KeyAt(0));
         buffer_pool_manager_->UnpinPage(right_bro->GetPageId(), true);
       }
-
+      parent->DeleteWithValue(iter->GetPageId());
+      // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
       buffer_pool_manager_->UnpinPage(iter->GetPageId(), true);
       buffer_pool_manager_->DeletePage(iter->GetPageId());
       transaction->AddIntoDeletedPageSet(iter->GetPageId());
@@ -378,6 +406,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   } else {
     buffer_pool_manager_->UnpinPage(root_page->GetPageId(), false);
   }
+  // Draw(buffer_pool_manager_, "/home/cgBustub/build/my-tree1.dot");
+  latch_.unlock();
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -402,6 +432,7 @@ void BPLUSTREE_TYPE::AlterKey(page_id_t p_page_id, const KeyType &old_key, const
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  LOG_INFO("Begin");
   auto *page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
   while (!page->IsLeafPage()) {
     auto internal = reinterpret_cast<InternalPage *>(page);

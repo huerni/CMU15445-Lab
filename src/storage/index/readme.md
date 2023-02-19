@@ -30,7 +30,7 @@ make b_plus_tree_concurrent_test -j$(nproc)
 https://www.gradescope.com/courses/425272
 ```
 make format -j$(nproc)
-make check-lint -j$(nproc)
+make format -j$(nproc)
 make check-clang-tidy-p2 -j$(nproc)
 
 make submit-p2

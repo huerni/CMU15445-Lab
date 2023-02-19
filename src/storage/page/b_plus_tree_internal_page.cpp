@@ -59,7 +59,24 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &value) { array_[index].second = value; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &value, KeyComparator comparator) {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::BinarySearch(const KeyType &key, const KeyComparator &comparator) -> int {
+  int l = 0;
+  int r = GetSize() - 1;
+  while (l <= r) {
+    int mid = l + (r - l) / 2;
+    if (comparator(KeyAt(mid), key) >= 0) {
+      r = mid - 1;
+    } else {
+      l = mid + 1;
+    }
+  }
+
+  return l;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &value,
+                                             const KeyComparator &comparator) {
   int size = GetSize();
   int i = 0;
   for (; i < size; ++i) {
@@ -77,7 +94,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteKey(const KeyType &key, KeyComparator comparator) -> int {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteKey(const KeyType &key, const KeyComparator &comparator) -> int {
   int size = GetSize();
   int i = 0;
   for (; i < size; ++i) {
@@ -96,6 +113,26 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteKey(const KeyType &key, KeyComparator
 
   IncreaseSize(-1);
   return i;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteWithValue(const ValueType &value) {
+  int size = GetSize();
+  int i = 0;
+  for (; i < size; ++i) {
+    if (ValueAt(i) == value) {
+      break;
+    }
+  }
+
+  if (i >= size) {
+    return;
+  }
+  for (int j = i + 1; j < size; ++j) {
+    array_[j - 1] = array_[j];
+  }
+
+  IncreaseSize(-1);
 }
 
 // valuetype for internalNode should be page id_t

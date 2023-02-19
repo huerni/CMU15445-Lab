@@ -44,12 +44,13 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   void SetValueAt(int index, const ValueType &value);
 
-  void PushKey(const KeyType &key, const ValueType &value, KeyComparator comparator);
-  auto DeleteKey(const KeyType &key, KeyComparator comparator) -> int;
+  auto BinarySearch(const KeyType &key, const KeyComparator &comparator) -> int;
+  void PushKey(const KeyType &key, const ValueType &value, const KeyComparator &comparator);
+  auto DeleteKey(const KeyType &key, const KeyComparator &comparator) -> int;
+  void DeleteWithValue(const ValueType &value);
 
  private:
   // Flexible array member for page data.
   MappingType array_[1];
-  // std::vector<MappingType> array_;
 };
 }  // namespace bustub

@@ -108,7 +108,7 @@ TEST(BPlusTreeConcurrentTest, InsertTest1) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 4, 4);
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -159,7 +159,7 @@ TEST(BPlusTreeConcurrentTest, InsertTest2) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 5, 5);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 3);
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -211,7 +211,7 @@ TEST(BPlusTreeConcurrentTest, DeleteTest1) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 4, 4);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 3);
   GenericKey<8> index_key;
   // create and fetch header_page
   page_id_t page_id;
@@ -253,7 +253,7 @@ TEST(BPlusTreeConcurrentTest, DeleteTest2) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 3);
   GenericKey<8> index_key;
   // create and fetch header_page
   page_id_t page_id;
@@ -263,7 +263,7 @@ TEST(BPlusTreeConcurrentTest, DeleteTest2) {
   // sequential insert
   std::vector<int64_t> keys = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   InsertHelper(&tree, keys);
-
+  tree.Draw(bpm, "/home/cgBustub/build/my-tree1.dot");
   std::vector<int64_t> remove_keys = {1, 4, 3, 2, 5, 6};
   LaunchParallelTest(2, DeleteHelperSplit, &tree, remove_keys, 2);
 
@@ -271,6 +271,7 @@ TEST(BPlusTreeConcurrentTest, DeleteTest2) {
   int64_t current_key = start_key;
   int64_t size = 0;
   index_key.SetFromInteger(start_key);
+  tree.Draw(bpm, "/home/cgBustub/build/my-tree1.dot");
   for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(location.GetPageId(), 0);
@@ -296,7 +297,7 @@ TEST(BPlusTreeConcurrentTest, MixTest) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 3);
   GenericKey<8> index_key;
 
   // create and fetch header_page
@@ -312,10 +313,10 @@ TEST(BPlusTreeConcurrentTest, MixTest) {
   for (int i = 6; i <= 10; i++) {
     keys.push_back(i);
   }
-  LaunchParallelTest(1, InsertHelper, &tree, keys);
+  LaunchParallelTest(2, InsertHelper, &tree, keys);
   // concurrent delete
   std::vector<int64_t> remove_keys = {1, 4, 3, 5, 6};
-  LaunchParallelTest(1, DeleteHelper, &tree, remove_keys);
+  LaunchParallelTest(2, DeleteHelper, &tree, remove_keys);
 
   int64_t start_key = 2;
   int64_t size = 0;
