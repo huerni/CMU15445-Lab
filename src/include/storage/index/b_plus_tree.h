@@ -49,15 +49,15 @@ class BPlusTree {
 
   auto FindLeaf(const KeyType &key) -> LeafPage *;
 
-  void InsertInParent(BPlusTreePage *left, BPlusTreePage *right);
+  void InsertInParent(BPlusTreePage *left, BPlusTreePage *right, const KeyType &key);
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
 
+  void RemoveInParent(InternalPage *iter, Transaction *transaction);
+
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
-
-  void AlterKey(page_id_t p_page_id, const KeyType &old_key, const KeyType &new_key);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;

@@ -223,7 +223,6 @@ TEST(BPlusTreeConcurrentTest, DeleteTest1) {
 
   std::vector<int64_t> remove_keys = {1, 5, 3, 4};
   LaunchParallelTest(2, DeleteHelper, &tree, remove_keys);
-
   int64_t start_key = 2;
   int64_t current_key = start_key;
   int64_t size = 0;
@@ -297,7 +296,7 @@ TEST(BPlusTreeConcurrentTest, MixTest) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 3);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 5);
   GenericKey<8> index_key;
 
   // create and fetch header_page

@@ -131,9 +131,7 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
   }
 
   Page *page = &pages_[frame_id];
-  if (is_dirty) {
-    page->is_dirty_ = true;
-  }
+  page->is_dirty_ |= is_dirty;
 
   if (page->GetPinCount() <= 0) {
     latch_.unlock();

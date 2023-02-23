@@ -29,7 +29,7 @@ namespace bustub {
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {
   SetPageType(IndexPageType::INTERNAL_PAGE);
-  SetSize(0);
+  SetSize(1);
   SetPageId(page_id);
   SetParentPageId(parent_id);
   SetMaxSize(max_size);
@@ -59,60 +59,41 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &value) { array_[index].second = value; }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::BinarySearch(const KeyType &key, const KeyComparator &comparator) -> int {
-  int l = 0;
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindKey(const KeyType &key, const KeyComparator &comparator) -> int {
+  int l = 1;
   int r = GetSize() - 1;
-  while (l <= r) {
+  while (l <= r) {  // 找到小于等于key的位置
     int mid = l + (r - l) / 2;
-    if (comparator(KeyAt(mid), key) >= 0) {
+    if (comparator(KeyAt(mid), key) > 0) {
       r = mid - 1;
     } else {
       l = mid + 1;
     }
   }
 
-  return l;
+  return r;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushKey(const KeyType &key, const ValueType &value,
                                              const KeyComparator &comparator) {
   int size = GetSize();
-  int i = 0;
+  int i = 1;
   for (; i < size; ++i) {
+    if (comparator(KeyAt(i), key) == 0) {
+      return;
+    }
     if (comparator(KeyAt(i), key) > 0) {
       break;
     }
   }
 
-  IncreaseSize(1);
-
   for (int j = size - 1; j >= i; --j) {
     array_[j + 1] = array_[j];
   }
+
+  IncreaseSize(1);
   array_[i] = std::make_pair(key, value);
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteKey(const KeyType &key, const KeyComparator &comparator) -> int {
-  int size = GetSize();
-  int i = 0;
-  for (; i < size; ++i) {
-    if (comparator(KeyAt(i), key) == 0) {
-      break;
-    }
-  }
-
-  if (i >= size) {
-    return -1;
-  }
-
-  for (int j = i + 1; j < size; ++j) {
-    array_[j - 1] = array_[j];
-  }
-
-  IncreaseSize(-1);
-  return i;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -132,6 +113,14 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteWithValue(const ValueType &value) {
     array_[j - 1] = array_[j];
   }
 
+  IncreaseSize(-1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PushForward() {
+  for (int i = 2; i < GetSize(); ++i) {
+    array_[i - 1] = array_[i];
+  }
   IncreaseSize(-1);
 }
 

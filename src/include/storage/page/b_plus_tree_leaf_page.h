@@ -50,7 +50,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
 
-  auto BinarySearch(const KeyType &key, const KeyComparator &comparator) -> int;
+  auto FindKey(const KeyType &key, const KeyComparator &comparator) -> int;
   auto PushKey(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
   auto DeleteKey(const KeyType &key, const KeyComparator &comparator) -> int;
   auto ValueAt(int index) const -> ValueType;
