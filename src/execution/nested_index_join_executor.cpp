@@ -32,7 +32,7 @@ void NestIndexJoinExecutor::Init() {
     IndexInfo *indexinfo = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
     TableInfo * tableinfo = exec_ctx_->GetCatalog()->GetTable(plan_->GetInnerTableOid());
     // 对于从子表中提出的外部元组，向catalog索引中找到内部表元组。
-    // TODO: 使用key predicate构造索引探测键??
+    // 使用key predicate构造索引探测键
     auto statue = child_executor_->Next(&child_tuple, &rid);
     while(statue) {
       Tuple key {};
