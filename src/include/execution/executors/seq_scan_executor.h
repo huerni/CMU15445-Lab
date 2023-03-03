@@ -38,6 +38,7 @@ class SeqScanExecutor : public AbstractExecutor {
 
   /**
    * Yield the next tuple from the sequential scan.
+   * 下一行
    * @param[out] tuple The next tuple produced by the scan
    * @param[out] rid The next tuple RID produced by the scan
    * @return `true` if a tuple was produced, `false` if there are no more tuples
@@ -50,5 +51,7 @@ class SeqScanExecutor : public AbstractExecutor {
  private:
   /** The sequential scan plan node to be executed */
   const SeqScanPlanNode *plan_;
+
+  TableIterator iterator_;
 };
 }  // namespace bustub

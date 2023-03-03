@@ -156,9 +156,9 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *left, BPlusTreePage *right, c
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
-  LOG_INFO("Insert");
+  
   latch_.lock();
-
+  LOG_INFO("Insert");
   // 空树插入
   if (IsEmpty()) {
     auto *leaf = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
@@ -196,7 +196,6 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   } else {
     buffer_pool_manager_->UnpinPage(leaf->GetPageId(), true);
   }
-
   latch_.unlock();
   return true;
 }
@@ -497,6 +496,7 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  LOG_INFO("begin");
   auto *leaf = FindLeaf(key);
 
   int index = 0;
@@ -516,6 +516,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  LOG_INFO("end");
   auto *page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
   while (!page->IsLeafPage()) {
     auto internal = reinterpret_cast<InternalPage *>(page);

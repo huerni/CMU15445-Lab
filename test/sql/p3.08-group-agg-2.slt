@@ -49,6 +49,7 @@ select distinct v4, v5 from __mock_agg_input_big;
 1 233 
 0 233
 
+
 query rowsort
 select distinct * from (
     select cnt, sum(sum_v1), sum(sum_v2), sum(v4) from (

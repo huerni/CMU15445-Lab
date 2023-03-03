@@ -16,6 +16,7 @@
 
 #include "storage/table/tuple.h"
 #include "type/value.h"
+#include "common/logger.h"
 
 namespace bustub {
 

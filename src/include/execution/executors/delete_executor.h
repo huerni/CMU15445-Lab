@@ -58,6 +58,8 @@ class DeleteExecutor : public AbstractExecutor {
  private:
   /** The delete plan node to be executed */
   const DeletePlanNode *plan_;
+  int count_;
+  bool flag_;
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
 };
