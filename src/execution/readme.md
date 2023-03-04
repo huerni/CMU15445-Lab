@@ -48,6 +48,20 @@ make -j$(nproc) sqllogictest
 ./bin/bustub-sqllogictest ../test/sql/p3.12-nested-index-join.slt --verbose
 ```
 
+## sort_executor
+```
+make -j$(nproc) sqllogictest
+./bin/bustub-sqllogictest ../test/sql/p3.13-sort-limit.slt --verbose
+```
+
+## topn_executor
+```
+make -j$(nproc) sqllogictest
+./bin/bustub-sqllogictest ../test/sql/p3.14-topn.slt --verbose
+./bin/bustub-sqllogictest ../test/sql/p3.15-integration-1.slt --verbose
+./bin/bustub-sqllogictest ../test/sql/p3.16-integration-2.slt --verbose
+```
+
 ## 提交
 ```
 cd build && make -j$(nproc) shell
@@ -55,11 +69,13 @@ cd build && make -j$(nproc) shell
 
 
 make -j$(nproc) sqllogictest
-./bin/bustub-sqllogictest ../test/sql/p3.00-primer.slt --verbose
+./bin/bustub-sqllogictest ../test/sql/p3.14-topn.slt --verbose
 
 make format
 make check-lint
 make check-clang-tidy-p3
+
+make submit-p3
 ```
 
 ## 参考资料

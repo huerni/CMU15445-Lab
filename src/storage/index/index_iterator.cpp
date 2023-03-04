@@ -20,9 +20,7 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  return iter_->GetNextPageId() == INVALID_PAGE_ID && index_ == iter_->GetSize();
-}
+auto INDEXITERATOR_TYPE::IsEnd() -> bool { return iter_ == nullptr; }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return iter_->GetKeyValue(index_); }
@@ -30,16 +28,17 @@ auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return iter_->GetK
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   ++index_;
-  if (IsEnd()) {
-    buffer_pool_manager_->UnpinPage(iter_->GetPageId(), true);
-    return *this;
-  }
-
-  if (index_ == iter_->GetSize()) {
-    auto *new_iter = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(iter_->GetNextPageId())->GetData());
-    buffer_pool_manager_->UnpinPage(iter_->GetPageId(), true);
-    iter_ = new_iter;
-    index_ = 0;
+  if (index_ >= iter_->GetSize()) {
+    if (iter_->GetNextPageId() != INVALID_PAGE_ID) {
+      auto *new_iter = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(iter_->GetNextPageId())->GetData());
+      buffer_pool_manager_->UnpinPage(iter_->GetPageId(), true);
+      iter_ = new_iter;
+      index_ = 0;
+    } else {
+      buffer_pool_manager_->UnpinPage(iter_->GetPageId(), true);
+      iter_ = nullptr;
+      index_ = 0;
+    }
   }
 
   return *this;

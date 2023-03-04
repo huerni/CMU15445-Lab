@@ -11,6 +11,9 @@
 #include "concurrency/transaction.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
+#include "execution/plans/limit_plan.h"
+#include "execution/plans/sort_plan.h"
+#include "execution/plans/topn_plan.h"
 
 #define BUSTUB_OPTIMIZER_HACK_REMOVE_AFTER_2022_FALL
 
