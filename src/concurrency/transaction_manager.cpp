@@ -44,8 +44,8 @@ auto TransactionManager::Begin(Transaction *txn, IsolationLevel isolation_level)
 }
 
 void TransactionManager::Commit(Transaction *txn) {
+  // TODO: 为什么放在第一句？
   txn->SetState(TransactionState::COMMITTED);
-
   // Perform all deletes before we commit.
   auto write_set = txn->GetWriteSet();
   while (!write_set->empty()) {
@@ -58,7 +58,6 @@ void TransactionManager::Commit(Transaction *txn) {
     write_set->pop_back();
   }
   write_set->clear();
-
   // Release all the locks.
   ReleaseLocks(txn);
   // Release the global transaction latch.
@@ -108,7 +107,7 @@ void TransactionManager::Abort(Transaction *txn) {
   }
   table_write_set->clear();
   index_write_set->clear();
-
+  
   // Release all the locks.
   ReleaseLocks(txn);
   // Release the global transaction latch.

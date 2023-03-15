@@ -64,7 +64,7 @@ class LockManager {
   class LockRequestQueue {
    public:
     /** List of lock requests for the same resource (table or row) */
-    std::list<LockRequest *> request_queue_;
+    std::list<std::shared_ptr<LockRequest>> request_queue_;
     /** For notifying blocked transactions on this rid */
     std::condition_variable cv_;
     /** txn_id of an upgrading transaction (if any) */
@@ -219,6 +219,9 @@ class LockManager {
    */
   auto LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) noexcept(false) -> bool;
 
+  auto GrantTableLock(std::shared_ptr<LockRequestQueue> lock_request_queue, std::shared_ptr<LockRequest> lock_request) -> bool;
+
+  auto CheckCompatibility(LockMode hold_mode, LockMode want_mode) -> bool;
   /**
    * Release the lock held on a table by the transaction.
    *
@@ -231,6 +234,8 @@ class LockManager {
    * @return true if the unlock is successful, false otherwise
    */
   auto UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool;
+
+  auto GrantRowLock(std::shared_ptr<LockRequestQueue> lock_request_queue, std::shared_ptr<LockRequest> lock_request) -> bool;
 
   /**
    * Acquire a lock on rid in the given lock_mode.
@@ -285,6 +290,9 @@ class LockManager {
    * @param[out] txn_id if the graph has a cycle, will contain the newest transaction ID
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
    */
+
+  auto SearchCycle(std::unordered_set<txn_id_t> &isvisited, txn_id_t cur, std::vector<txn_id_t>& ans) -> bool;
+
   auto HasCycle(txn_id_t *txn_id) -> bool;
 
   /**

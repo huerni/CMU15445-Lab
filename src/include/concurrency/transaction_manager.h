@@ -102,7 +102,7 @@ class TransactionManager {
         row_lock_set[x_row_lock_set.first].emplace(rid);
       }
     }
-
+    
     /** Drop all table locks */
     std::unordered_set<table_oid_t> table_lock_set;
     for (auto oid : *txn->GetSharedTableLockSet()) {
@@ -121,19 +121,17 @@ class TransactionManager {
       table_lock_set.emplace(oid);
     }
     txn->UnlockTxn();
-
     for (const auto &locked_table_row_set : row_lock_set) {
       table_oid_t oid = locked_table_row_set.first;
       for (auto rid : locked_table_row_set.second) {
         lock_manager_->UnlockRow(txn, oid, rid);
       }
     }
-
     for (auto oid : table_lock_set) {
       lock_manager_->UnlockTable(txn, oid);
     }
   }
-
+  
   std::atomic<txn_id_t> next_txn_id_{0};
   LockManager *lock_manager_ __attribute__((__unused__));
   LogManager *log_manager_ __attribute__((__unused__));
