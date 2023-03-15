@@ -94,6 +94,8 @@ void ExtendibleHashTable<K, V>::RedistributeBucket(std::shared_ptr<Bucket> bucke
 
   int tmp_mask = (1 << bucket->GetDepth()) - 1;
   auto list = bucket->GetItems();
+
+  // TODO: 优化复杂度
   std::unordered_map<size_t, std::shared_ptr<Bucket>> split_bucket;
   for (size_t i = 0; i < dir_.size(); ++i) {
     if (dir_[i] == bucket) {
@@ -116,7 +118,6 @@ void ExtendibleHashTable<K, V>::RedistributeBucket(std::shared_ptr<Bucket> bucke
 // 1. 如果localdepth等于globaldepth，++globaldepth，dir长度加倍
 // 2. localdepth++，分裂。
 // 3. 继续尝试插入
-// ExtendibleHashTableTest.InsertMultipleSplit 没有分裂成功，死循环？
 template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
   // UNREACHABLE("not implemented");
@@ -127,6 +128,7 @@ void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
     if (bucket->Insert(key, value)) {
       break;
     }
+
     if (bucket->GetDepth() == global_depth_) {
       int tmp_mask = (1 << global_depth_) - 1;
       ++global_depth_;
@@ -135,7 +137,7 @@ void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
         size_t k = i & tmp_mask;
         tmp[i] = dir_[k];
       }
-      dir_.swap(tmp);
+      dir_ = std::move(tmp);
     }
     RedistributeBucket(bucket);
   }
@@ -146,6 +148,13 @@ void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
 //===--------------------------------------------------------------------===//
 template <typename K, typename V>
 ExtendibleHashTable<K, V>::Bucket::Bucket(size_t array_size, int depth) : size_(array_size), depth_(depth) {}
+
+template <typename K, typename V>
+auto ExtendibleHashTable<K, V>::Bucket::IndexOf(const K &key) const -> int {
+  int mask = (1 << depth_) - 1;
+
+  return std::hash<K>()(key) & mask;
+}
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Find(const K &key, V &value) -> bool {
@@ -163,7 +172,6 @@ auto ExtendibleHashTable<K, V>::Bucket::Find(const K &key, V &value) -> bool {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Remove(const K &key) -> bool {
   // UNREACHABLE("not implemented");
-
   bool flag = std::any_of(list_.begin(), list_.end(), [key](auto it) { return key == it.first; });
   if (flag) {
     for (auto &it : list_) {
@@ -180,7 +188,6 @@ auto ExtendibleHashTable<K, V>::Bucket::Remove(const K &key) -> bool {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Insert(const K &key, const V &value) -> bool {
   // UNREACHABLE("not implemented");
-
   for (auto &[k, v] : list_) {
     if (key == k) {
       v = value;

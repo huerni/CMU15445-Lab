@@ -62,7 +62,6 @@ page引用数减1
 将buffer pool中所有page写入磁盘
 
 ## DeletePgImp
-删除buffer pool中没有修改，没有引用的指定page
-
+删除buffer pool中没有修改，没有引用的指定page  
 ## 参考资料
 https://segmentfault.com/a/1190000022558044  

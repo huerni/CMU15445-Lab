@@ -16,6 +16,7 @@ namespace bustub {
 
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
+// 找到驱逐帧
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   // std::scoped_lock<std::mutex> lock(latch_);
   latch_.lock();
@@ -54,6 +55,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   return flag;
 }
 
+
 void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
   // std::scoped_lock<std::mutex> lock(latch_);
   latch_.lock();
@@ -62,6 +64,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
   auto it = cache_.find(frame_id);
   if (it != cache_.end()) {
     // lru_.splice(lru_.end(), lru_, it->second);
+    // TODO: 优化，存储k个时间是没必要的
     auto vec = hast_[frame_id];
     for (int i = k_ - 1; i > 0; --i) {
       vec[i] = vec[i - 1];

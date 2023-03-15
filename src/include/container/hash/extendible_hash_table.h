@@ -121,6 +121,8 @@ class ExtendibleHashTable : public HashTable<K, V> {
     /** @brief Increment the local depth of a bucket. */
     inline void IncrementDepth() { depth_++; }
 
+    auto IndexOf(const K &key) const -> int;
+
     inline auto GetItems() -> std::list<std::pair<K, V>> & { return list_; }
 
     /**

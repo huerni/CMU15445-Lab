@@ -15,3 +15,10 @@ true循环判断是否能够插入，一但插入成功跳出循环
 ## Remove
 根据key使用IndexOf函数找到对应的bucket，使用bucket的Remove函数删除
 
+
+```
+$ mkdir build
+$ cd build
+$ make extendible_hash_table_test -j$(nproc)
+$ ./test/extendible_hash_table_test
+```
