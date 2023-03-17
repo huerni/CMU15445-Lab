@@ -12,7 +12,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <climits>
+#include <deque>
 #include <list>
 #include <mutex>  // NOLINT
 #include <unordered_map>
@@ -143,10 +145,9 @@ class LRUKReplacer {
   size_t replacer_size_;
   size_t k_;
 
-  std::list<frame_id_t> lru_;
-  std::unordered_map<frame_id_t, std::list<frame_id_t>::iterator> cache_;
-  std::unordered_map<frame_id_t, std::vector<int>> hast_;
-  std::unordered_set<frame_id_t> is_evictable_;
+  std::list<frame_id_t> list_;
+  std::list<frame_id_t> list_evictable_;
+  std::unordered_map<frame_id_t, std::list<int>> hast_;
 
   std::mutex latch_;
 };

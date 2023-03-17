@@ -16,140 +16,113 @@ namespace bustub {
 
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
-// 找到驱逐帧
+// 找到驱逐帧，只需要在evicatable中找
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
-  // std::scoped_lock<std::mutex> lock(latch_);
-  latch_.lock();
+  std::scoped_lock<std::mutex> lock(latch_);
+
   ++current_timestamp_;
-  size_t mmax = 0;
-  bool flag = false;
-  for (auto &id : lru_) {
-    if (is_evictable_.count(id) != 0U) {
-      if (hast_[id][k_ - 1] == INT_MAX) {
-        *frame_id = id;
-        is_evictable_.erase(id);
-        cache_.erase(id);
-        hast_.erase(id);
-        lru_.remove(id);
-        // LOG_INFO("Evict: %d", *frame_id);
-        latch_.unlock();
-        return true;
-      }
-      size_t tmp = current_timestamp_ - hast_[id][k_ - 1];
-      if (tmp > mmax) {
-        mmax = tmp;
-        *frame_id = id;
-        flag = true;
-      }
+  size_t old_timestamp = 0;
+  bool result = false;
+  auto iter = list_evictable_.begin();
+  for (; iter != list_evictable_.end(); ++iter) {
+    if (hast_[*iter].size() < k_) {
+      *frame_id = *iter;
+      result = true;
+      break;
+    }
+    size_t tmp = current_timestamp_ - hast_[*iter].back();
+    if (tmp > old_timestamp) {
+      *frame_id = *iter;
+      old_timestamp = tmp;
+      result = true;
     }
   }
 
-  if (flag) {
-    is_evictable_.erase(*frame_id);
-    cache_.erase(*frame_id);
+  if (result) {
     hast_.erase(*frame_id);
-    lru_.remove(*frame_id);
-    // LOG_INFO("Evict: %d", *frame_id);
+    list_evictable_.remove(*frame_id);
   }
-  latch_.unlock();
-  return flag;
+  return result;
 }
 
-
+// 在所有队列中找，然后判断is_evictable
+// 找不到要替换时，在is_evictable中找
 void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
-  // std::scoped_lock<std::mutex> lock(latch_);
-  latch_.lock();
+  std::scoped_lock<std::mutex> lock(latch_);
+
   ++current_timestamp_;
   // LOG_INFO("RecordAccess: %d", frame_id);
-  auto it = cache_.find(frame_id);
-  if (it != cache_.end()) {
-    // lru_.splice(lru_.end(), lru_, it->second);
-    // TODO: 优化，存储k个时间是没必要的
-    auto vec = hast_[frame_id];
-    for (int i = k_ - 1; i > 0; --i) {
-      vec[i] = vec[i - 1];
+  auto it = hast_.find(frame_id);
+  if (it != hast_.end()) {
+    it->second.push_front(current_timestamp_);
+    if (it->second.size() > k_) {
+      it->second.pop_back();
     }
-    vec[0] = current_timestamp_;
-    hast_[frame_id] = vec;
   } else {
-    if (lru_.size() == replacer_size_) {
-      size_t mmax = 0;
-      bool flag = false;
-      frame_id_t pop_id;
-      for (auto &id : lru_) {
-        if (is_evictable_.count(id) != 0U) {
-          if (hast_[id][k_ - 1] == INT_MAX) {
-            is_evictable_.erase(id);
-            cache_.erase(id);
-            hast_.erase(id);
-            lru_.remove(id);
-          }
-          size_t tmp = current_timestamp_ - hast_[id][k_ - 1];
-          if (tmp > mmax) {
-            mmax = tmp;
-            pop_id = id;
-            flag = true;
-          }
+    if (list_.size() + list_evictable_.size() == replacer_size_) {
+      size_t old_timestamp = 0;
+      bool result = false;
+      frame_id_t replace_frame;
+      auto iter = list_evictable_.begin();
+      for (; iter != list_evictable_.end(); ++iter) {
+        if (hast_[*iter].size() < k_) {
+          replace_frame = *iter;
+          result = true;
+          break;
+        }
+        size_t tmp = current_timestamp_ - hast_[*iter].back();
+        if (tmp > old_timestamp) {
+          replace_frame = *iter;
+          old_timestamp = tmp;
+          result = true;
         }
       }
 
-      if (flag) {
-        is_evictable_.erase(pop_id);
-        cache_.erase(pop_id);
-        hast_.erase(pop_id);
-        lru_.remove(pop_id);
+      if (result) {
+        hast_.erase(replace_frame);
+        list_evictable_.remove(replace_frame);
       }
     }
-    lru_.push_back(frame_id);
-    cache_.emplace(frame_id, std::prev(lru_.end()));
-    std::vector<int> vec(k_, INT_MAX);
-    vec[0] = current_timestamp_;
-    hast_[frame_id] = vec;
+
+    list_.push_back(frame_id);
+    hast_[frame_id].push_front(current_timestamp_);
   }
-  latch_.unlock();
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-  // std::scoped_lock<std::mutex> lock(latch_);
-  latch_.lock();
+  std::scoped_lock<std::mutex> lock(latch_);
   ++current_timestamp_;
   // LOG_INFO("SetEvictable: %d", frame_id);
-  auto it = cache_.find(frame_id);
-  if (it == cache_.end()) {
-    latch_.unlock();
-    return;
+  auto it = hast_.find(frame_id);
+  if (it != hast_.end()) {
+    list_.remove(frame_id);
+    list_evictable_.remove(frame_id);
+    if (set_evictable) {
+      list_evictable_.push_back(frame_id);
+    } else {
+      list_.push_back(frame_id);
+    }
   }
-
-  if (set_evictable) {
-    is_evictable_.insert(frame_id);
-  } else {
-    is_evictable_.erase(frame_id);
-  }
-  latch_.unlock();
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-  // std::scoped_lock<std::mutex> lock(latch_);
-  latch_.lock();
+  std::scoped_lock<std::mutex> lock(latch_);
   ++current_timestamp_;
   // LOG_INFO("REMOVE: %d", frame_id);
-  auto it = cache_.find(frame_id);
-  if (it == cache_.end()) {
-    latch_.unlock();
-    return;
+  auto it = hast_.find(frame_id);
+  if (it != hast_.end()) {
+    if (std::find(list_.begin(), list_.end(), frame_id) != list_.end()) {
+      abort();
+    }
+    list_evictable_.remove(frame_id);
+    hast_.erase(frame_id);
   }
-  if (is_evictable_.count(frame_id) == 0U) {
-    latch_.unlock();
-    abort();
-  }
-
-  is_evictable_.erase(frame_id);
-  cache_.erase(frame_id);
-  hast_.erase(frame_id);
-  lru_.remove(frame_id);
-  latch_.unlock();
 }
 
-auto LRUKReplacer::Size() -> size_t { return is_evictable_.size(); }
+auto LRUKReplacer::Size() -> size_t {
+  std::scoped_lock<std::mutex> lock(latch_);
+
+  return list_evictable_.size();
+}
 
 }  // namespace bustub

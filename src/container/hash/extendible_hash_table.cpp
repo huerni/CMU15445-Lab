@@ -95,7 +95,6 @@ void ExtendibleHashTable<K, V>::RedistributeBucket(std::shared_ptr<Bucket> bucke
   int tmp_mask = (1 << bucket->GetDepth()) - 1;
   auto list = bucket->GetItems();
 
-  // TODO: 优化复杂度
   std::unordered_map<size_t, std::shared_ptr<Bucket>> split_bucket;
   for (size_t i = 0; i < dir_.size(); ++i) {
     if (dir_[i] == bucket) {
