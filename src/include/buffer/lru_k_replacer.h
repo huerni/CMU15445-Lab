@@ -146,8 +146,8 @@ class LRUKReplacer {
   size_t k_;
 
   std::list<frame_id_t> list_;
-  std::list<frame_id_t> list_evictable_;
   std::unordered_map<frame_id_t, std::list<int>> hast_;
+  std::unordered_map<frame_id_t, int> is_evictable_;
 
   std::mutex latch_;
 };

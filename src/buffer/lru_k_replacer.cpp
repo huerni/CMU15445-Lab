@@ -23,24 +23,27 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   ++current_timestamp_;
   size_t old_timestamp = 0;
   bool result = false;
-  auto iter = list_evictable_.begin();
-  for (; iter != list_evictable_.end(); ++iter) {
-    if (hast_[*iter].size() < k_) {
-      *frame_id = *iter;
-      result = true;
-      break;
-    }
-    size_t tmp = current_timestamp_ - hast_[*iter].back();
-    if (tmp > old_timestamp) {
-      *frame_id = *iter;
-      old_timestamp = tmp;
-      result = true;
+  auto iter = list_.begin();
+  for (; iter != list_.end(); ++iter) {
+    if (is_evictable_[*iter] != 0) {
+      if (hast_[*iter].size() < k_) {
+        *frame_id = *iter;
+        result = true;
+        break;
+      }
+      size_t tmp = current_timestamp_ - hast_[*iter].back();
+      if (tmp > old_timestamp) {
+        *frame_id = *iter;
+        old_timestamp = tmp;
+        result = true;
+      }
     }
   }
 
   if (result) {
     hast_.erase(*frame_id);
-    list_evictable_.remove(*frame_id);
+    list_.remove(*frame_id);
+    is_evictable_.erase(*frame_id);
   }
   return result;
 }
@@ -59,33 +62,37 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
       it->second.pop_back();
     }
   } else {
-    if (list_.size() + list_evictable_.size() == replacer_size_) {
+    if (list_.size() == replacer_size_) {
       size_t old_timestamp = 0;
       bool result = false;
       frame_id_t replace_frame;
-      auto iter = list_evictable_.begin();
-      for (; iter != list_evictable_.end(); ++iter) {
-        if (hast_[*iter].size() < k_) {
-          replace_frame = *iter;
-          result = true;
-          break;
-        }
-        size_t tmp = current_timestamp_ - hast_[*iter].back();
-        if (tmp > old_timestamp) {
-          replace_frame = *iter;
-          old_timestamp = tmp;
-          result = true;
+      auto iter = list_.begin();
+      for (; iter != list_.end(); ++iter) {
+        if (is_evictable_[*iter] != 0) {
+          if (hast_[*iter].size() < k_) {
+            replace_frame = *iter;
+            result = true;
+            break;
+          }
+          size_t tmp = current_timestamp_ - hast_[*iter].back();
+          if (tmp > old_timestamp) {
+            replace_frame = *iter;
+            old_timestamp = tmp;
+            result = true;
+          }
         }
       }
 
       if (result) {
         hast_.erase(replace_frame);
-        list_evictable_.remove(replace_frame);
+        list_.remove(replace_frame);
+        is_evictable_.erase(replace_frame);
       }
     }
 
     list_.push_back(frame_id);
     hast_[frame_id].push_front(current_timestamp_);
+    is_evictable_[frame_id] = 0;
   }
 }
 
@@ -95,12 +102,10 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   // LOG_INFO("SetEvictable: %d", frame_id);
   auto it = hast_.find(frame_id);
   if (it != hast_.end()) {
-    list_.remove(frame_id);
-    list_evictable_.remove(frame_id);
     if (set_evictable) {
-      list_evictable_.push_back(frame_id);
+      is_evictable_[frame_id] = 1;
     } else {
-      list_.push_back(frame_id);
+      is_evictable_[frame_id] = 0;
     }
   }
 }
@@ -111,18 +116,19 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   // LOG_INFO("REMOVE: %d", frame_id);
   auto it = hast_.find(frame_id);
   if (it != hast_.end()) {
-    if (std::find(list_.begin(), list_.end(), frame_id) != list_.end()) {
+    if (is_evictable_.count(frame_id) == 0U) {
       abort();
     }
-    list_evictable_.remove(frame_id);
+    list_.remove(frame_id);
     hast_.erase(frame_id);
+    is_evictable_.erase(frame_id);
   }
 }
 
 auto LRUKReplacer::Size() -> size_t {
   std::scoped_lock<std::mutex> lock(latch_);
 
-  return list_evictable_.size();
+  return is_evictable_.size();
 }
 
 }  // namespace bustub
