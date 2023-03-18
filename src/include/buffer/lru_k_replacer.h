@@ -137,17 +137,23 @@ class LRUKReplacer {
    */
   auto Size() -> size_t;
 
+  struct FrameInfo {
+    FrameInfo(frame_id_t frame_id, int current_timestamp) : frame_id_(frame_id) { hast_.push_back(current_timestamp); }
+    frame_id_t frame_id_;
+    std::list<int> hast_;
+    bool is_evictable_{false};
+  };
+
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
   size_t current_timestamp_{0};
-  [[maybe_unused]] size_t curr_size_{0};
+  size_t curr_size_{0};
   size_t replacer_size_;
   size_t k_;
 
-  std::list<frame_id_t> list_;
-  std::unordered_map<frame_id_t, std::list<int>> hast_;
-  std::unordered_map<frame_id_t, int> is_evictable_;
+  std::list<FrameInfo> list_;
+  std::unordered_map<frame_id_t, std::list<FrameInfo>::iterator> cache_;
 
   std::mutex latch_;
 };

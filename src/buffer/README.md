@@ -31,7 +31,7 @@ make buffer_pool_manager_instance_test -j$(nproc)
 ./test/buffer_pool_manager_instance_test
 
 
- sudo perf record -g ./test/extendible_hash_table_test
+ sudo perf record -g ./test/buffer_pool_manager_instance_test
  sudo perf report -g
 
 make format
