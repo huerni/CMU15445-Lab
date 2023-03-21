@@ -219,7 +219,8 @@ class LockManager {
    */
   auto LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) noexcept(false) -> bool;
 
-  auto GrantTableLock(std::shared_ptr<LockRequestQueue> lock_request_queue, std::shared_ptr<LockRequest> lock_request) -> bool;
+  auto GrantTableLock(std::shared_ptr<LockRequestQueue> &lock_request_queue, std::shared_ptr<LockRequest> &lock_request)
+      -> bool;
 
   auto CheckCompatibility(LockMode hold_mode, LockMode want_mode) -> bool;
   /**
@@ -235,7 +236,8 @@ class LockManager {
    */
   auto UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool;
 
-  auto GrantRowLock(std::shared_ptr<LockRequestQueue> lock_request_queue, std::shared_ptr<LockRequest> lock_request) -> bool;
+  auto GrantRowLock(std::shared_ptr<LockRequestQueue> &lock_request_queue, std::shared_ptr<LockRequest> &lock_request)
+      -> bool;
 
   /**
    * Acquire a lock on rid in the given lock_mode.
@@ -291,7 +293,7 @@ class LockManager {
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
    */
 
-  auto SearchCycle(std::unordered_set<txn_id_t> &isvisited, txn_id_t cur, std::vector<txn_id_t>& ans) -> bool;
+  auto SearchCycle(std::unordered_set<txn_id_t> &isvisited, txn_id_t cur, std::vector<txn_id_t> &ans) -> bool;
 
   auto HasCycle(txn_id_t *txn_id) -> bool;
 

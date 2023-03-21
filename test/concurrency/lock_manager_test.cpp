@@ -200,22 +200,22 @@ void TwoPLTest1() {
 
   RID rid0{0, 0};
   RID rid1{0, 1};
-  
+
   auto *txn = txn_mgr.Begin();
   EXPECT_EQ(0, txn->GetTransactionId());
-  
+
   bool res;
   res = lock_mgr.LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid);
   EXPECT_TRUE(res);
 
   res = lock_mgr.LockRow(txn, LockManager::LockMode::SHARED, oid, rid0);
   EXPECT_TRUE(res);
-  
+
   CheckGrowing(txn);
   CheckTxnRowLockSize(txn, oid, 1, 0);
-  
+
   res = lock_mgr.LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, rid1);
-  
+
   EXPECT_TRUE(res);
   CheckGrowing(txn);
   CheckTxnRowLockSize(txn, oid, 1, 1);
@@ -223,22 +223,21 @@ void TwoPLTest1() {
   EXPECT_TRUE(res);
   CheckShrinking(txn);
   CheckTxnRowLockSize(txn, oid, 0, 1);
-  
-  // shrinking状态获取S锁，抛异常
+
   try {
     lock_mgr.LockRow(txn, LockManager::LockMode::SHARED, oid, rid0);
   } catch (TransactionAbortException &e) {
     CheckAborted(txn);
     CheckTxnRowLockSize(txn, oid, 0, 1);
   }
-  
+
   // Need to call txn_mgr's abort
   txn_mgr.Abort(txn);
   CheckAborted(txn);
-  
+
   CheckTxnRowLockSize(txn, oid, 0, 0);
   CheckTableLockSizes(txn, 0, 0, 0, 0, 0);
-  
+
   delete txn;
 }
 

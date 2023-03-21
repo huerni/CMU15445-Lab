@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -60,6 +61,7 @@ class InsertExecutor : public AbstractExecutor {
   int count_;
   bool flag_;
   std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<RID> insert_recode_;
 };
 
 }  // namespace bustub

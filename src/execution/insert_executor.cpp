@@ -42,15 +42,36 @@ auto InsertExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   }
   flag_ = false;
   if (!status) {
+    // 只有读未提交，在commit之前解锁
+    if (exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
+      LOG_INFO("unlock table X");
+      exec_ctx_->GetLockManager()->UnlockTable(exec_ctx_->GetTransaction(), plan_->TableOid());
+    }
     return false;
   }
-
+  // 加锁  插入表时，对表加X锁，然后插入
+  // 不同隔离级别的差别？   怎么回滚呢？？
+  // lock
+  bool lockresult = exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(),
+                                                           LockManager::LockMode::EXCLUSIVE, plan_->TableOid());
+  if (!lockresult) {
+    // 对已经插入的进行rollback
+    LOG_INFO("lock table X faile");
+    for (auto &rid : insert_recode_) {
+      exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->table_->ApplyDelete(rid, exec_ctx_->GetTransaction());
+    }
+    exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
+    throw std::exception();
+  }
+  LOG_INFO("lock table X");
   while (status) {
     ++count_;
     // 1. 得到元组插入表
     TableInfo *tableinfo = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
     bool result = tableinfo->table_->InsertTuple(child_tuple, rid, exec_ctx_->GetTransaction());
     assert(result != false);
+    LOG_INFO("table insert");
+    insert_recode_.emplace_back(*rid);
     // 2. 若有index，插入index
     auto indexinfos = exec_ctx_->GetCatalog()->GetTableIndexes(tableinfo->name_);
     for (auto &indexinfo : indexinfos) {

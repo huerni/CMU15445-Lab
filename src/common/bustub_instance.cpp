@@ -324,7 +324,6 @@ auto BustubInstance::ExecuteSqlTxn(const std::string &sql, ResultWriter &writer,
     auto exec_ctx = MakeExecutorContext(txn);
     std::vector<Tuple> result_set{};
     is_successful &= execution_engine_->Execute(optimized_plan, &result_set, txn, exec_ctx.get());
-
     // Return the result set as a vector of string.
     auto schema = planner.plan_->OutputSchema();
 
@@ -335,7 +334,6 @@ auto BustubInstance::ExecuteSqlTxn(const std::string &sql, ResultWriter &writer,
       writer.WriteHeaderCell(column.GetName());
     }
     writer.EndHeader();
-
     // Transforming result set into strings.
     for (const auto &tuple : result_set) {
       writer.BeginRow();
@@ -346,7 +344,6 @@ auto BustubInstance::ExecuteSqlTxn(const std::string &sql, ResultWriter &writer,
     }
     writer.EndTable();
   }
-
   return is_successful;
 }
 
