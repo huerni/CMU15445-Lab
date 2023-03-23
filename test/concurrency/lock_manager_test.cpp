@@ -243,4 +243,79 @@ void TwoPLTest1() {
 
 TEST(LockManagerTest, TwoPLTest1) { TwoPLTest1(); }  // NOLINT
 
+// FIXME: 会死锁，嘛意思？？
+void AbortTest() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  table_oid_t oid = 0;
+
+  auto txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn1 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn2 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  // FIXME: lock dead
+  std::thread t1([&] {
+    lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid);
+    CheckTableLockSizes(txn0, 0, 1, 0, 0, 0);
+  });
+  std::thread t2([&] { lock_mgr.LockTable(txn1, LockManager::LockMode::EXCLUSIVE, oid); });
+  std::thread t3([&] { lock_mgr.LockTable(txn2, LockManager::LockMode::EXCLUSIVE, oid); });
+  std::thread t4([&] { lock_mgr.UnlockTable(txn0, oid); });
+  t1.join();
+  t2.join();
+  t3.join();
+  t4.join();
+
+  delete txn0;
+  delete txn1;
+  delete txn2;
+}
+
+TEST(LockManagerTest, DISABLED_AbortTest) { AbortTest(); }
+
+void UpgradeTest() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  table_oid_t oid = 0;
+
+  auto txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  lock_mgr.LockTable(txn0, LockManager::LockMode::SHARED, oid);
+  lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid);
+  lock_mgr.UnlockTable(txn0, oid);
+  delete txn0;
+
+  txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn1 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn2 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  std::thread t0([&] {
+    lock_mgr.LockTable(txn0, LockManager::LockMode::SHARED, oid);
+    lock_mgr.LockTable(txn1, LockManager::LockMode::SHARED, oid);
+    lock_mgr.LockTable(txn2, LockManager::LockMode::SHARED, oid);
+  });
+
+  std::thread t1([&] { lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid); });
+
+  std::thread t2([&] {
+    lock_mgr.UnlockTable(txn1, oid);
+    CheckTableLockSizes(txn0, 0, 0, 0, 0, 0);
+    CheckTableLockSizes(txn1, 0, 0, 0, 0, 0);
+    CheckTableLockSizes(txn2, 1, 0, 0, 0, 0);
+  });
+
+  std::thread t3([&] { lock_mgr.UnlockTable(txn2, oid); });
+
+  t0.join();
+  t1.join();
+  t2.join();
+  t3.join();
+
+  delete txn0;
+  delete txn1;
+  delete txn2;
+}
+
+TEST(LockManagerTest, UpgradeTest) { UpgradeTest(); }
+
 }  // namespace bustub

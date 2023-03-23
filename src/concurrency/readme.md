@@ -42,4 +42,4 @@ make check-clang-tidy-p4
 make submit-p4
 ```
 https://15445.courses.cs.cmu.edu/fall2022/project4/
-https://www.gradescope.com/courses/425272/assignments/2508579/submissions/169521698
+https://www.gradescope.com/courses/425272/assignments/2508579/

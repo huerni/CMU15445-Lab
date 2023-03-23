@@ -23,7 +23,6 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 
 void SeqScanExecutor::Init() {
   // 获取table锁
-  // FIXME: REDAUNCOMMITED获取了shared锁报错
   if (exec_ctx_->GetTransaction()->GetIsolationLevel() != IsolationLevel::READ_UNCOMMITTED) {
     bool result = exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(),
                                                          LockManager::LockMode::INTENTION_SHARED, plan_->GetTableOid());
