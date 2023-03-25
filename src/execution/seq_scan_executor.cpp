@@ -23,6 +23,7 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 
 void SeqScanExecutor::Init() {
   // 获取table锁
+  // LOG_INFO("seq scan");
   if (exec_ctx_->GetTransaction()->GetIsolationLevel() != IsolationLevel::READ_UNCOMMITTED) {
     bool result = exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(),
                                                          LockManager::LockMode::INTENTION_SHARED, plan_->GetTableOid());
@@ -30,7 +31,7 @@ void SeqScanExecutor::Init() {
       exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
       throw std::exception();
     }
-    LOG_INFO("lock table IS");
+    // LOG_INFO("lock table IS");
   }
 }
 
@@ -39,9 +40,10 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto transaction = exec_ctx_->GetTransaction();
 
   if (iterator_ == exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid())->table_->End()) {
+    // read_commit下解锁
     if (transaction->GetIsolationLevel() == IsolationLevel::READ_COMMITTED) {
       lock_manager->UnlockTable(transaction, plan_->GetTableOid());
-      LOG_INFO("unlock table IS");
+      // LOG_INFO("unlock table IS");
     }
     return false;
   }
@@ -53,7 +55,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
       throw std::exception();
     }
-    LOG_INFO("lock row S");
+    // LOG_INFO("lock row S");
   }
 
   *tuple = Tuple(*iterator_);
@@ -61,8 +63,8 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   ++iterator_;
 
   if (transaction->GetIsolationLevel() == IsolationLevel::READ_COMMITTED) {
-    lock_manager->UnlockRow(transaction, plan_->GetTableOid(), iterator_->GetRid());
-    LOG_INFO("unlock row S");
+    lock_manager->UnlockRow(transaction, plan_->GetTableOid(), *rid);
+    // LOG_INFO("unlock row S");
   }
 
   return true;

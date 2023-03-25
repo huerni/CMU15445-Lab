@@ -24,6 +24,20 @@ void DeleteExecutor::Init() {
   child_executor_->Init();
   count_ = 0;
   flag_ = true;
+  // LOG_INFO("table delete");
+  // 对表获取IX锁，元组获取X锁
+  try {
+    /* code */
+    bool result = exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(),
+                                                         LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+    if (!result) {
+      exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
+      throw std::exception();
+    }
+  } catch (const std::exception &e) {
+    throw std::exception();
+  }
+  // LOG_INFO("lock table IX");
 }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
@@ -43,36 +57,33 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
   flag_ = false;
   if (!status) {
-    if (exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
-      exec_ctx_->GetLockManager()->UnlockTable(exec_ctx_->GetTransaction(), plan_->TableOid());
-    }
     return false;
   }
-  // 对表获取IX锁，元组获取X锁
-  bool result = exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(),
-                                                       LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
-  if (!result) {
-    // 事务回滚
-    for (auto &rid : remove_tuples_) {
-      exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->table_->RollbackDelete(rid, exec_ctx_->GetTransaction());
-    }
-    exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
-    throw std::exception();
-  }
+
   while (status) {
     ++count_;
     // 1. 得到元组从表中标记删除
     TableInfo *tableinfo = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
-    bool result = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE,
-                                                       plan_->TableOid(), *rid);
-    if (!result) {
-      // 事务回滚
+    try {
+      bool result = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE,
+                                                         plan_->TableOid(), *rid);
+      if (!result) {
+        // 事务回滚
+        for (auto &rid : remove_tuples_) {
+          exec_ctx_->GetCatalog()
+              ->GetTable(plan_->TableOid())
+              ->table_->RollbackDelete(rid, exec_ctx_->GetTransaction());
+        }
+        exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
+        throw std::exception();
+      }
+    } catch (const std::exception &e) {
       for (auto &rid : remove_tuples_) {
         exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->table_->RollbackDelete(rid, exec_ctx_->GetTransaction());
       }
-      exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
       throw std::exception();
     }
+    // LOG_INFO("lock row X");
     tableinfo->table_->MarkDelete(*rid, exec_ctx_->GetTransaction());
     remove_tuples_.emplace_back(*rid);
     // 2. 若有index，从index删除
@@ -85,10 +96,6 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       }
       Tuple index_tuple = Tuple(key_values, &indexinfo->key_schema_);
       indexinfo->index_->DeleteEntry(index_tuple, *rid, exec_ctx_->GetTransaction());
-    }
-    // ru模式下解锁
-    if (exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
-      exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), plan_->TableOid(), *rid);
     }
     status = child_executor_->Next(&child_tuple, rid);
   }

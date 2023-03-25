@@ -207,14 +207,14 @@ void TwoPLTest1() {
   bool res;
   res = lock_mgr.LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid);
   EXPECT_TRUE(res);
-  
+
   res = lock_mgr.LockRow(txn, LockManager::LockMode::SHARED, oid, rid0);
   EXPECT_TRUE(res);
   CheckGrowing(txn);
   CheckTxnRowLockSize(txn, oid, 1, 0);
 
   res = lock_mgr.LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, rid1);
-  
+
   EXPECT_TRUE(res);
   CheckGrowing(txn);
   CheckTxnRowLockSize(txn, oid, 1, 1);
@@ -297,12 +297,11 @@ void UpgradeTest() {
     lock_mgr.LockTable(txn1, LockManager::LockMode::SHARED, 0);
     lock_mgr.UnlockTable(txn1, oid);
   });
-  
-  
+
   std::thread t2([&] {
     lock_mgr.LockTable(txn2, LockManager::LockMode::SHARED, 0);
     lock_mgr.UnlockTable(txn2, oid);
-  }); 
+  });
 
   t0.join();
   t1.join();
@@ -311,7 +310,6 @@ void UpgradeTest() {
   delete txn0;
   delete txn1;
   delete txn2;
-
 }
 
 TEST(LockManagerTest, DISABLED_UpgradeTest) { UpgradeTest(); }
@@ -324,7 +322,7 @@ void RepeatableReadTest() {
   auto txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
 
   lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid);
-  
+
   try {
     lock_mgr.LockRow(txn0, LockManager::LockMode::SHARED, oid, rid0);
   } catch (TransactionAbortException &e) {
