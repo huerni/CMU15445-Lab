@@ -109,7 +109,7 @@ void TableLockTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_TableLockTest1) { TableLockTest1(); }  // NOLINT
+TEST(LockManagerTest, TableLockTest1) { TableLockTest1(); }  // NOLINT
 
 /** Upgrading single transaction from S -> X */
 void TableLockUpgradeTest1() {
@@ -134,7 +134,8 @@ void TableLockUpgradeTest1() {
 
   delete txn1;
 }
-TEST(LockManagerTest, DISABLED_TableLockUpgradeTest1) { TableLockUpgradeTest1(); }  // NOLINT
+
+TEST(LockManagerTest, TableLockUpgradeTest1) { TableLockUpgradeTest1(); }  // NOLINT
 
 void RowLockTest1() {
   LockManager lock_mgr{};
@@ -155,15 +156,15 @@ void RowLockTest1() {
     bool res;
 
     res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::SHARED, oid);
+
     EXPECT_TRUE(res);
     CheckGrowing(txns[txn_id]);
-
     res = lock_mgr.LockRow(txns[txn_id], LockManager::LockMode::SHARED, oid, rid);
+
     EXPECT_TRUE(res);
     CheckGrowing(txns[txn_id]);
     /** Lock set should be updated */
     ASSERT_EQ(true, txns[txn_id]->IsRowSharedLocked(oid, rid));
-
     res = lock_mgr.UnlockRow(txns[txn_id], oid, rid);
     EXPECT_TRUE(res);
     CheckShrinking(txns[txn_id]);
@@ -190,7 +191,7 @@ void RowLockTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_RowLockTest1) { RowLockTest1(); }  // NOLINT
+TEST(LockManagerTest, RowLockTest1) { RowLockTest1(); }  // NOLINT
 
 void TwoPLTest1() {
   LockManager lock_mgr{};
@@ -209,15 +210,14 @@ void TwoPLTest1() {
 
   res = lock_mgr.LockRow(txn, LockManager::LockMode::SHARED, oid, rid0);
   EXPECT_TRUE(res);
-
   CheckGrowing(txn);
   CheckTxnRowLockSize(txn, oid, 1, 0);
 
   res = lock_mgr.LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, rid1);
+
   EXPECT_TRUE(res);
   CheckGrowing(txn);
   CheckTxnRowLockSize(txn, oid, 1, 1);
-
   res = lock_mgr.UnlockRow(txn, oid, rid0);
   EXPECT_TRUE(res);
   CheckShrinking(txn);
@@ -233,12 +233,104 @@ void TwoPLTest1() {
   // Need to call txn_mgr's abort
   txn_mgr.Abort(txn);
   CheckAborted(txn);
+
   CheckTxnRowLockSize(txn, oid, 0, 0);
   CheckTableLockSizes(txn, 0, 0, 0, 0, 0);
 
   delete txn;
 }
 
-TEST(LockManagerTest, DISABLED_TwoPLTest1) { TwoPLTest1(); }  // NOLINT
+TEST(LockManagerTest, TwoPLTest1) { TwoPLTest1(); }  // NOLINT
+
+void AbortTest() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  table_oid_t oid = 0;
+
+  auto txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn1 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn2 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  std::thread t1([&] {
+    lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid);
+    CheckTableLockSizes(txn0, 0, 1, 0, 0, 0);
+  });
+  std::thread t2([&] { lock_mgr.LockTable(txn1, LockManager::LockMode::EXCLUSIVE, oid); });
+  std::thread t3([&] { lock_mgr.LockTable(txn2, LockManager::LockMode::EXCLUSIVE, oid); });
+  std::thread t4([&] { lock_mgr.UnlockTable(txn0, oid); });
+  t1.join();
+  t2.join();
+  t3.join();
+  t4.join();
+
+  delete txn0;
+  delete txn1;
+  delete txn2;
+}
+
+TEST(LockManagerTest, DISABLED_AbortTest) { AbortTest(); }
+
+void UpgradeTest() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  table_oid_t oid = 0;
+
+  auto txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  lock_mgr.LockTable(txn0, LockManager::LockMode::SHARED, oid);
+  lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid);
+  lock_mgr.UnlockTable(txn0, oid);
+
+  delete txn0;
+
+  txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn1 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+  auto txn2 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  std::thread t0([&] {
+    lock_mgr.LockTable(txn0, LockManager::LockMode::SHARED, 0);
+    lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, 0);
+    lock_mgr.UnlockTable(txn0, oid);
+  });
+
+  std::thread t1([&] {
+    lock_mgr.LockTable(txn1, LockManager::LockMode::SHARED, 0);
+    lock_mgr.UnlockTable(txn1, oid);
+  });
+
+  std::thread t2([&] {
+    lock_mgr.LockTable(txn2, LockManager::LockMode::SHARED, 0);
+    lock_mgr.UnlockTable(txn2, oid);
+  });
+
+  t0.join();
+  t1.join();
+  t2.join();
+
+  delete txn0;
+  delete txn1;
+  delete txn2;
+}
+
+TEST(LockManagerTest, DISABLED_UpgradeTest) { UpgradeTest(); }
+
+void RepeatableReadTest() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  table_oid_t oid = 0;
+  RID rid0{0, 0};
+  auto txn0 = txn_mgr.Begin(nullptr, IsolationLevel::REPEATABLE_READ);
+
+  lock_mgr.LockTable(txn0, LockManager::LockMode::EXCLUSIVE, oid);
+
+  try {
+    lock_mgr.LockRow(txn0, LockManager::LockMode::SHARED, oid, rid0);
+  } catch (TransactionAbortException &e) {
+    CheckAborted(txn0);
+  }
+  delete txn0;
+}
+
+TEST(LockManagerTest, RepeatableReadTest) { RepeatableReadTest(); }
 
 }  // namespace bustub

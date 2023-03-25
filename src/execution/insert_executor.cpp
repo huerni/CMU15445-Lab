@@ -24,6 +24,23 @@ void InsertExecutor::Init() {
   child_executor_->Init();
   count_ = 0;
   flag_ = true;
+  // LOG_INFO("table insert");
+  try {
+    /* code */
+    // 加锁  插入表时，对表加IX锁，然后插入
+    // 不同隔离级别的差别？   怎么回滚呢？？
+    // lock
+    bool lockresult = exec_ctx_->GetLockManager()->LockTable(
+        exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+    if (!lockresult) {
+      // LOG_INFO("lock table IX faile");
+      exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
+      throw std::exception();
+    }
+  } catch (const std::exception &e) {
+    throw std::exception();
+  }
+  // LOG_INFO("lock table IX");
 }
 
 auto InsertExecutor::Next(Tuple *tuple, RID *rid) -> bool {
@@ -49,8 +66,29 @@ auto InsertExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     ++count_;
     // 1. 得到元组插入表
     TableInfo *tableinfo = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
+    try {
+      bool lockresult = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(),
+                                                             LockManager::LockMode::EXCLUSIVE, plan_->TableOid(), *rid);
+      if (!lockresult) {
+        // 对已经插入的进行rollback
+        // LOG_INFO("lock row X faile");
+        for (auto &rid : insert_recode_) {
+          exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->table_->ApplyDelete(rid, exec_ctx_->GetTransaction());
+        }
+        exec_ctx_->GetTransaction()->SetState(TransactionState::ABORTED);
+        throw std::exception();
+      }
+    } catch (const std::exception &e) {
+      // LOG_INFO("lock row X faile");
+      for (auto &rid : insert_recode_) {
+        exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->table_->ApplyDelete(rid, exec_ctx_->GetTransaction());
+      }
+      throw std::exception();
+    }
+    // LOG_INFO("lock row X");
     bool result = tableinfo->table_->InsertTuple(child_tuple, rid, exec_ctx_->GetTransaction());
     assert(result != false);
+    insert_recode_.emplace_back(*rid);
     // 2. 若有index，插入index
     auto indexinfos = exec_ctx_->GetCatalog()->GetTableIndexes(tableinfo->name_);
     for (auto &indexinfo : indexinfos) {

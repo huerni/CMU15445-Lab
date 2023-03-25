@@ -44,8 +44,8 @@ auto TransactionManager::Begin(Transaction *txn, IsolationLevel isolation_level)
 }
 
 void TransactionManager::Commit(Transaction *txn) {
+  LOG_INFO("Commit %d", txn->GetTransactionId());
   txn->SetState(TransactionState::COMMITTED);
-
   // Perform all deletes before we commit.
   auto write_set = txn->GetWriteSet();
   while (!write_set->empty()) {
@@ -58,7 +58,6 @@ void TransactionManager::Commit(Transaction *txn) {
     write_set->pop_back();
   }
   write_set->clear();
-
   // Release all the locks.
   ReleaseLocks(txn);
   // Release the global transaction latch.
@@ -66,6 +65,7 @@ void TransactionManager::Commit(Transaction *txn) {
 }
 
 void TransactionManager::Abort(Transaction *txn) {
+  LOG_INFO("Abort %d", txn->GetTransactionId());
   txn->SetState(TransactionState::ABORTED);
   // Rollback before releasing the lock.
   auto table_write_set = txn->GetWriteSet();

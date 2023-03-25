@@ -121,14 +121,12 @@ class TransactionManager {
       table_lock_set.emplace(oid);
     }
     txn->UnlockTxn();
-
     for (const auto &locked_table_row_set : row_lock_set) {
       table_oid_t oid = locked_table_row_set.first;
       for (auto rid : locked_table_row_set.second) {
         lock_manager_->UnlockRow(txn, oid, rid);
       }
     }
-
     for (auto oid : table_lock_set) {
       lock_manager_->UnlockTable(txn, oid);
     }
